@@ -1,0 +1,51 @@
+name: Fábrica de IA Autónoma
+
+on:
+  workflow_dispatch:
+    inputs:
+      projeto_ideia:
+        description: 'Qual é a ideia do projeto que a IA deve criar?'
+        required: true
+        default: 'Um sistema de gestão de tarefas com login'
+
+jobs:
+  construir-projeto:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar o repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Executar a Equipa de Agentes
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PROJETO_IDEIA: ${{ github.event.inputs.projeto_ideia }}
+        run: |
+          python orquestrador.py
+
+      - name: Enviar o código gerado de volta para o GitHub
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "🤖 IA: Novo projeto desenvolvido e arquitetado automaticamente"
+          file_pattern: "*.md"
+
+      - name: Enviar Notificação por E-mail
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "🎉 Seu Projeto de IA está Pronto no GitHub!"
+          body: "Olá Manuel! A sua equipa de agentes terminou de desenvolver o projeto solicitado na nuvem. Verifique o seu repositório no GitHub para conferir o ficheiro 'projeto_final.md'."
+          to: ${{ secrets.MAIL_TO }}
+          from: Fábrica de IA <${{ secrets.MAIL_USERNAME }}>
