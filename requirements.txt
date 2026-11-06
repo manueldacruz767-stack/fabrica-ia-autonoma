@@ -1,6 +1,2 @@
 crewai>=0.80.0
-crewai-tools
-google-genai
-python-dotenv
-setuptools
-wheel
+langchain-google-genai
