@@ -1,8 +1,8 @@
 import os
 from crewai import Agent, Task, Crew, Process
 
-# O CrewAI deteta automaticamente a GEMINI_API_KEY do ambiente usando a prefixação gemini/
-llm_gemini = "gemini/gemini-2.5-flash"
+# Usando o modelo Gemini suportado atualmente
+llm_gemini = "gemini/gemini-1.5-flash"
 
 ideia = os.getenv("PROJETO_IDEIA", "Sistema padrão de tarefas")
 
