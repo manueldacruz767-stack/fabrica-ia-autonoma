@@ -1,8 +1,8 @@
 import os
 from crewai import Agent, Task, Crew, Process
 
-# Usando o modelo Gemini suportado atualmente
-llm_gemini = "gemini/gemini-1.5-flash"
+# Usando o modelo Gemini atual e recomendado
+llm_gemini = "gemini/gemini-2.0-flash"
 
 ideia = os.getenv("PROJETO_IDEIA", "Sistema padrão de tarefas")
 
