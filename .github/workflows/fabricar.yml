@@ -37,15 +37,3 @@ jobs:
         with:
           commit_message: "🤖 IA: Novo projeto desenvolvido e arquitetado automaticamente"
           file_pattern: "*.md"
-
-      - name: Enviar Notificação por E-mail
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: ${{ secrets.MAIL_USERNAME }}
-          password: ${{ secrets.MAIL_PASSWORD }}
-          subject: "🎉 Seu Projeto de IA está Pronto no GitHub!"
-          body: "Olá Manuel! A sua equipa de agentes terminou de desenvolver o projeto solicitado na nuvem. Verifique o seu repositório no GitHub para conferir o ficheiro 'projeto_final.md'."
-          to: ${{ secrets.MAIL_TO }}
-          from: Fábrica de IA <${{ secrets.MAIL_USERNAME }}>
