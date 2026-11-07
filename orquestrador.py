@@ -22,7 +22,7 @@ def carregar_skill(nome_agente: str) -> str:
     return "Aja de acordo com a sua especialidade técnica e os padrões da fábrica."
 
 def criar_instrucao_com_skill(nome_agente: str, instrucao_base: str) -> str:
-    """Obriga o agente a consultar e seguir estritamente a sua skill antes de qualquer acção."""
+    """Obriga o agente a consultar e assimilar rigorosamente a sua skill antes de qualquer acção."""
     conteudo_skill = carregar_skill(nome_agente)
     
     instrucao_rigorosa = f"""
@@ -38,7 +38,6 @@ Antes de iniciar qualquer raciocínio, planeamento ou resposta, DEVE consultar e
 """
     return instrucao_rigorosa
 
-# Exemplo de verificação de arranque
 if __name__ == "__main__":
     projeto = os.getenv("PROJETO_IDEIA", "Projeto Padrão da Fábrica")
     print(f"[Fábrica de IA Autónoma] Orquestrador carregado com sucesso!")
