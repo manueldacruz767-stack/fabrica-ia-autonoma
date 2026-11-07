@@ -1,0 +1,33 @@
+name: Fábrica de IA Autónoma 24/7
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 8 * * *'
+
+jobs:
+  executar-fabrica:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clonar Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Instalar Dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-genai python-dotenv pypdf requests
+
+      - name: Executar Agentes na Nuvem
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+          PROJETO_IDEIA: "FutPremier - Execução Autónoma 24h"
+        run: |
+          python3 executar_agente.py
