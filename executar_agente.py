@@ -29,9 +29,9 @@ def executar_agente_completo(nome_agente: str, tarefa: str, query_pesquisa: str 
     # Gerar instrução com skill obrigatória
     prompt_completo = criar_instrucao_com_skill(nome_agente, tarefa_completa)
     
-    print(f"[Fábrica] A gerar solução com o Gemini (modelo gemini-2.5-flash)...")
+    print(f"[Fábrica] A gerar solução com o Gemini (modelo gemini-1.5-flash)...")
     resposta = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-1.5-flash",
         contents=prompt_completo,
     )
     
