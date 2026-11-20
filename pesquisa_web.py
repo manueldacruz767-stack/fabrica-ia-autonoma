@@ -21,7 +21,7 @@ def pesquisar_web(query: str, num_resultados: int = 5) -> str:
     }
     
     try:
-        response = requests.post(url, json=payload, headers=headers)
+        response = requests.post(url, json=payload, headers=headers, timeout=15)
         if response.status_code == 200:
             dados = response.json()
             resultados_formatados = ""

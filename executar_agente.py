@@ -1,56 +1,92 @@
+import argparse
 import os
-from google import genai
-from orquestrador import criar_instrucao_com_skill
+import sys
+
+from fabrica_core import (
+    construir_prompt,
+    executar_comando,
+    gerar_texto,
+    salvar_saida,
+    tem_chave_api,
+    texto_validacao,
+)
 from pesquisa_web import pesquisar_web
-from ferramentas_sistema import executar_comando_sistema
-from dotenv import load_dotenv
 
-load_dotenv()
+TAREFA_PADRAO = (
+    "Analisa o estado atual da infraestrutura, identifica riscos concretos e propõe "
+    "um plano de automação segura e verificável para o projeto."
+)
 
-# Inicializar o cliente oficial do Google GenAI
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-def executar_agente_autonomo(nome_agente: str, tarefa: str, query_pesquisa: str = None, comando_sistema: str = None):
-    print(f"\n[Fábrica Autónoma] A despertar o agente especializado: {nome_agente.upper()}...")
-    
-    contexto_extra = ""
-    
-    # 1. Investigação na Web (se solicitada)
+def executar_agente_autonomo(
+    nome_agente: str,
+    tarefa: str,
+    query_pesquisa: str | None = None,
+    comando_sistema: str | None = None,
+    modelo: str | None = None,
+    tentativas: int = 2,
+    dry_run: bool = False,
+    saida: str | None = None,
+) -> str:
+    print(f"[Fabrica] Agente despertado: {nome_agente}")
+
+    contexto = ""
     if query_pesquisa:
-        print(f"[Fábrica] A investigar na web em tempo real: '{query_pesquisa}'...")
-        contexto_extra += f"\n\n[DADOS DE INVESTIGAÇÃO WEB RECOLHIDOS]:\n{pesquisar_web(query_pesquisa)}\n"
-        
-    # 2. Interação Real com o Sistema / Infraestrutura (CLI: Git, GitHub, Vercel, Python)
+        print(f"[Fabrica] Pesquisa web: {query_pesquisa}")
+        contexto += f"[PESQUISA_WEB]\n{pesquisar_web(query_pesquisa)}\n"
     if comando_sistema:
-        print(f"[Fábrica] A executar comando no sistema operacional/CLI: '{comando_sistema}'...")
-        saida_sistema = executar_comando_sistema(comando_sistema)
-        contexto_extra += f"\n\n[ESTADO ATUAL DO SISTEMA / SAÍDA DO COMANDO]:\n{saida_sistema}\n"
-    
-    tarefa_completa = tarefa + contexto_extra
-    
-    # 3. Cruzar diretrizes obrigatórias da skill com a tarefa operacional
-    prompt_completo = criar_instrucao_com_skill(nome_agente, tarefa_completa)
-    
-    print(f"[Fábrica] A processar tokens com o Gemini (modelo gemini-3.8-flash)...")
-    resposta = client.models.generate_content(
-        model="gemini-3.8-flash",
-        contents=prompt_completo,
-    )
-    
-    print(f"\n=== RELATÓRIO DO AGENTE ({nome_agente.upper()}) ===")
-    print(resposta.text)
-    print("=" * 70)
+        print(f"[Fabrica] Comando solicitado: {comando_sistema}")
+        contexto += f"[SISTEMA]\n{executar_comando(comando_sistema)}\n"
+
+    prompt = construir_prompt(nome_agente, tarefa, contexto)
+    if dry_run:
+        relatorio = texto_validacao(nome_agente, tarefa)
+        if contexto:
+            relatorio += f"\n\n{contexto}"
+    else:
+        geracao = gerar_texto(prompt, modelo, tentativas)
+        print(f"[Fabrica] Modelo utilizado: {geracao.modelo}")
+        relatorio = geracao.texto
+
+    print(f"\n=== RELATORIO DO AGENTE ({nome_agente}) ===\n{relatorio}\n{'=' * 70}")
+    if saida:
+        destino = salvar_saida(relatorio, saida)
+        print(f"[Fabrica] Relatorio gravado em {destino}")
+    return relatorio
+
+
+def main(argv: list[str] | None = None) -> int:
+    analisador = argparse.ArgumentParser(description="Executa um agente especializado da Fabrica de IA")
+    analisador.add_argument("--agente", default="devops", help="Nome da skill do agente")
+    analisador.add_argument("--tarefa", default=os.getenv("PROJETO_IDEIA", TAREFA_PADRAO), help="Tarefa a executar")
+    analisador.add_argument("--pesquisa", default=None, help="Consulta opcional para a pesquisa web")
+    analisador.add_argument("--comando", default=None, help="Comando opcional (exige FABRICA_ACOES_EXTERNAS=1)")
+    analisador.add_argument("--saida", default=None, help="Caminho opcional do relatorio")
+    analisador.add_argument("--modelo", default=None, help="Modelo Gemini preferido")
+    analisador.add_argument("--tentativas", type=int, default=2, help="Tentativas por modelo")
+    analisador.add_argument("--dry-run", action="store_true", help="Valida o fluxo sem chamar a API")
+    argumentos = analisador.parse_args(argv)
+
+    if not argumentos.dry_run and not tem_chave_api():
+        print("Erro: GEMINI_API_KEY nao encontrada. Define o segredo no GitHub ou a variavel no .env.", file=sys.stderr)
+        return 2
+
+    try:
+        executar_agente_autonomo(
+            nome_agente=argumentos.agente,
+            tarefa=argumentos.tarefa,
+            query_pesquisa=argumentos.pesquisa,
+            comando_sistema=argumentos.comando,
+            modelo=argumentos.modelo,
+            tentativas=argumentos.tentativas,
+            dry_run=argumentos.dry_run,
+            saida=argumentos.saida,
+        )
+    except RuntimeError as exc:
+        print(f"Erro: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
 
 if __name__ == "__main__":
-    # Exemplo de teste prático da orquestração unificada
-    tarefa_padrao = (
-        "Analisa o estado atual da infraestrutura, verifica as diretrizes do teu ecossistema "
-        "e propõe o script de automação em Python para criar um repositório e preparar o deploy na Vercel."
-    )
-    
-    # Despertar o agente DevOps com verificação simultânea do git e ferramentas CLI
-    executar_agente_autonomo(
-        nome_agente="devops", 
-        tarefa=tarefa_padrao, 
-        comando_sistema="git status && gh --version && vercel --version"
-    )
+    raise SystemExit(main())

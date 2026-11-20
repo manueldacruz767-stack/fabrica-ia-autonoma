@@ -1,6 +1,3 @@
-crewai==0.80.0
-crewai-tools
-google-genai
-python-dotenv
-setuptools
-wheel
+google-genai>=2.33,<4
+python-dotenv>=1.0,<2
+requests>=2.31,<3

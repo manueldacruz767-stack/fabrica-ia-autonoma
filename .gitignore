@@ -10,4 +10,13 @@ env/
 .DS_Store
 .idea/
 .vscode/
+*~
+*.log
+
+# Segredos
 .env
+
+# Saidas geradas
+projetos/
+saida/
+angola-health-system/

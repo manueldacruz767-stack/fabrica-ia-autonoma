@@ -1,40 +1,73 @@
+import argparse
 import os
 import sys
-from pathlib import Path
-from dotenv import load_dotenv
 
-load_dotenv()
+from fabrica_core import (
+    construir_prompt,
+    gerar_texto,
+    montar_relatorio,
+    salvar_saida,
+    tem_chave_api,
+    texto_validacao,
+)
 
-if not os.getenv("GEMINI_API_KEY"):
-    print("Erro: GEMINI_API_KEY não encontrada no ficheiro .env", file=sys.stderr)
-    sys.exit(1)
+AGENTES_TAREFAS = (
+    (
+        "scrum_master",
+        "Produz o backlog da Versao 0.1 com historias, prioridade, sprints e criterios de aceicao verificaveis.",
+    ),
+    (
+        "arquiteto",
+        "Decide uma stack simples e proporcional ao projeto e desenha a arquitetura em camadas, com limites claros entre componentes.",
+    ),
+    (
+        "programador",
+        "Converte a arquitetura num plano de implementacao ordenado, com ficheiros, responsabilidades e riscos tecnicos.",
+    ),
+    (
+        "qa",
+        "Define o plano de testes unitarios, integracao e aceitacao, com comandos concretos e critérios de conclusao.",
+    ),
+)
 
-SKILLS_DIR = Path("skills")
 
-def carregar_skill(nome_agente: str) -> str:
-    """Lê estritamente o ficheiro de diretrizes/skill do agente. As skills são regras fixas."""
-    ficheiro_skill = SKILLS_DIR / f"{nome_agente}.md"
-    if ficheiro_skill.exists():
-        with open(ficheiro_skill, "r", encoding="utf-8") as f:
-            return f.read()
-    return f"Aja estritamente de acordo com a sua especialidade como {nome_agente.upper()} e cumpra os padrões da fábrica."
+def main(argv: list[str] | None = None) -> int:
+    analisador = argparse.ArgumentParser(description="Orquestrador da Fabrica de IA Autonoma")
+    analisador.add_argument("--ideia", default=os.getenv("PROJETO_IDEIA", "Sistema de gestao de tarefas"), help="Ideia do projeto")
+    analisador.add_argument("--saida", default="projeto_final.md", help="Caminho do relatorio gerado")
+    analisador.add_argument("--modelo", default=None, help="Modelo Gemini preferido")
+    analisador.add_argument("--tentativas", type=int, default=2, help="Tentativas por modelo")
+    analisador.add_argument("--dry-run", action="store_true", help="Valida o fluxo sem chamar a API")
+    argumentos = analisador.parse_args(argv)
 
-def criar_instrucao_com_skill(nome_agente: str, instrucao_base: str) -> str:
-    """Obriga o agente a assimilar a sua skill como regra inalterável antes de iniciar."""
-    conteudo_skill = carregar_skill(nome_agente)
-    
-    prompt_rigoroso = f"""
-[DIRETIVA OBRIGATÓRIA DE EXECUÇÃO - LEI SUPREMA]
-Antes de iniciar qualquer raciocínio, planeamento ou ação, DEVE consultar e assimilar rigorosamente a sua skill oficial abaixo. As diretrizes descritas na skill são leis absolutas para o seu comportamento, stack tecnológica e entregas. Você NÃO altera a skill; você cumpre-a rigorosamente.
+    if not argumentos.dry_run and not tem_chave_api():
+        print("Erro: GEMINI_API_KEY nao encontrada. Define o segredo no GitHub ou a variavel no .env.", file=sys.stderr)
+        return 2
 
---- SKILL OFICIAL DO AGENTE ({nome_agente.upper()}) ---
-{conteudo_skill}
-------------------------------------------------------
+    print(f"[Fabrica] Ideia recebida: {argumentos.ideia}")
+    secoes = []
 
-[TAREFAS E CONTEXTO OPERACIONAL ATUAL]
-{instrucao_base}
-"""
-    return prompt_rigoroso
+    for agente, tarefa in AGENTES_TAREFAS:
+        prompt = construir_prompt(agente, tarefa, f"Ideia do projeto: {argumentos.ideia}")
+        if argumentos.dry_run:
+            texto = texto_validacao(agente, tarefa)
+            modelo = None
+        else:
+            print(f"[Fabrica] A executar agente {agente}...")
+            try:
+                geracao = gerar_texto(prompt, argumentos.modelo, argumentos.tentativas)
+            except RuntimeError as exc:
+                print(f"Erro: {exc}", file=sys.stderr)
+                return 1
+            texto = geracao.texto
+            modelo = geracao.modelo
+            print(f"[Fabrica] {agente} concluido com {modelo}.")
+        secoes.append((agente, texto, modelo))
+
+    destino = salvar_saida(montar_relatorio(argumentos.ideia, secoes), argumentos.saida)
+    print(f"[Fabrica] Relatorio gravado em {destino}")
+    return 0
+
 
 if __name__ == "__main__":
-    print("[Fábrica de IA Autónoma] Orquestrador central carregado com sucesso.")
+    raise SystemExit(main())
