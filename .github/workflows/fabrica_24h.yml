@@ -16,6 +16,8 @@ jobs:
   executar-fabrica:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      FABRICA_CONTEXTO: ${{ vars.FABRICA_CONTEXTO }}
 
     steps:
       - name: Clonar repositorio
@@ -33,7 +35,7 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: Validar configuracao
-        run: python orquestrador.py --dry-run --ideia validacao --saida /tmp/validacao.md
+        run: python orquestrador.py --dry-run --ideia validacao --contexto "$FABRICA_CONTEXTO" --saida /tmp/validacao.md
 
       - name: Executar agentes na nuvem
         env:
@@ -47,7 +49,7 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           IDEIA="${PROJETO_IDEIA:-FutPremier - Execucao autonoma 24h}"
-          python orquestrador.py --ideia "$IDEIA" --saida projeto_final.md
+          python orquestrador.py --ideia "$IDEIA" --contexto "$FABRICA_CONTEXTO" --saida projeto_final.md
 
       - name: Guardar relatorio como artifact
         uses: actions/upload-artifact@v4

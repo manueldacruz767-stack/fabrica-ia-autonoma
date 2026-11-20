@@ -3,6 +3,7 @@ import os
 import sys
 
 from fabrica_core import (
+    carregar_contexto,
     construir_prompt,
     executar_comando,
     gerar_texto,
@@ -27,10 +28,13 @@ def executar_agente_autonomo(
     tentativas: int = 2,
     dry_run: bool = False,
     saida: str | None = None,
+    contexto_documentos: str = "",
 ) -> str:
     print(f"[Fabrica] Agente despertado: {nome_agente}")
 
     contexto = ""
+    if contexto_documentos:
+        contexto += f"[DOCUMENTOS]\n{contexto_documentos}\n"
     if query_pesquisa:
         print(f"[Fabrica] Pesquisa web: {query_pesquisa}")
         contexto += f"[PESQUISA_WEB]\n{pesquisar_web(query_pesquisa)}\n"
@@ -59,6 +63,11 @@ def main(argv: list[str] | None = None) -> int:
     analisador = argparse.ArgumentParser(description="Executa um agente especializado da Fabrica de IA")
     analisador.add_argument("--agente", default="devops", help="Nome da skill do agente")
     analisador.add_argument("--tarefa", default=os.getenv("PROJETO_IDEIA", TAREFA_PADRAO), help="Tarefa a executar")
+    analisador.add_argument(
+        "--contexto",
+        default=os.getenv("FABRICA_CONTEXTO", ""),
+        help="Ficheiro ou diretorio .md com documentos de contexto",
+    )
     analisador.add_argument("--pesquisa", default=None, help="Consulta opcional para a pesquisa web")
     analisador.add_argument("--comando", default=None, help="Comando opcional (exige FABRICA_ACOES_EXTERNAS=1)")
     analisador.add_argument("--saida", default=None, help="Caminho opcional do relatorio")
@@ -72,9 +81,16 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     try:
+        documentos = carregar_contexto(argumentos.contexto)
+    except (OSError, ValueError) as exc:
+        print(f"Erro ao carregar contexto: {exc}", file=sys.stderr)
+        return 1
+
+    try:
         executar_agente_autonomo(
             nome_agente=argumentos.agente,
             tarefa=argumentos.tarefa,
+            contexto_documentos=documentos,
             query_pesquisa=argumentos.pesquisa,
             comando_sistema=argumentos.comando,
             modelo=argumentos.modelo,

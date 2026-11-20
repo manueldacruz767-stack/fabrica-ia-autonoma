@@ -21,7 +21,7 @@ Edita o `.env` e coloca a tua `GEMINI_API_KEY`. Nunca commites o `.env`.
 ## Execucao
 
 ```bash
-python orquestrador.py --ideia "Sistema de gestao de tarefas" --saida projeto_final.md
+python orquestrador.py --ideia "Sistema de gestao de tarefas" --contexto contexto/hospital --saida projeto_final.md
 python executar_agente.py --agente devops --tarefa "Revisar a automacao do repositorio" --saida relatorio_agente.md
 ```
 
@@ -32,7 +32,7 @@ python orquestrador.py --dry-run --ideia validacao --saida /tmp/validacao.md
 python executar_agente.py --dry-run --agente devops
 ```
 
-Opcoes uteis: `--modelo` escolhe o modelo Gemini preferido, `--tentativas` define repeticoes por modelo, `--pesquisa` ativa a pesquisa Serper, `--comando` solicita um comando de sistema.
+Opcoes uteis: `--contexto` carrega um ficheiro ou diretorio de `.md` como documentos de base (ex.: `contexto/hospital`), `--modelo` escolhe o modelo Gemini preferido, `--tentativas` define repeticoes por modelo, `--pesquisa` ativa a pesquisa Serper, `--comando` solicita um comando de sistema.
 
 ## GitHub Actions
 
@@ -52,6 +52,7 @@ Variables opcionais:
 
 - `GEMINI_MODEL` (por omissao usa `gemini-3.1-flash-lite`)
 - `PROJETO_IDEIA` (usado pelo fluxo 24/7)
+- `FABRICA_CONTEXTO` (caminho do diretorio `.md` com documentos de base)
 - `FABRICA_ACOES_EXTERNAS` (define se os comandos de sistema sao executados)
 
 Os fluxos validam a configuracao em modo seco, geram o relatorio, fazem upload do artifact e commitam o ficheiro gerado. O segredo antigo `GOOCLE_API_KEY` nao e utilizado.
@@ -103,6 +104,7 @@ python -m compileall -q fabrica_core.py orquestrador.py executar_agente.py ferra
 - `orquestrador.py` - entrada principal multi-agente
 - `executar_agente.py` - entrada de agente unico
 - `skills/` - diretrizes obrigatorias dos agentes
+- `contexto/hospital/` - documentos `.md` do sistema hospitalar usados como contexto
 - `equipa_fabrica.py` - fabrica completa com CrewAI (opt-in)
 - `experimental/fabrica_ahs.py` - variacao antiga guardada para referencia
 - `.github/workflows/` - automatizacao na nuvem

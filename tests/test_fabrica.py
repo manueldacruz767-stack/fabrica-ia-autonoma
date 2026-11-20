@@ -45,6 +45,19 @@ class TestesFabricaCore(unittest.TestCase):
         self.assertIn("Validar build", prompt)
         self.assertIn("contexto", prompt)
 
+    def test_carregar_contexto_de_diretorio(self):
+        with tempfile.TemporaryDirectory() as diretorio:
+            Path(diretorio, "b.md").write_text("Segundo documento", encoding="utf-8")
+            Path(diretorio, "a.md").write_text("Primeiro documento", encoding="utf-8")
+            contexto = fabrica_core.carregar_contexto(diretorio)
+        self.assertIn("[DOCUMENTO: a.md]", contexto)
+        self.assertIn("[DOCUMENTO: b.md]", contexto)
+        self.assertLess(contexto.index("a.md"), contexto.index("b.md"))
+
+    def test_carregar_contexto_inexistente(self):
+        with self.assertRaises(ValueError):
+            fabrica_core.carregar_contexto("contexto/nao-existe")
+
     def test_comando_com_operadores_e_recusado(self):
         with self.assertRaises(ValueError):
             fabrica_core.validar_comando("git status && rm -rf /")
@@ -97,6 +110,24 @@ class TestesEntradas(unittest.TestCase):
         resultado = executar_agente.executar_agente_autonomo("devops", "Validar fluxo", dry_run=True)
         self.assertIn("devops", resultado)
         self.assertIn("Validar fluxo", resultado)
+
+    def test_orquestrador_dry_run_com_contexto(self):
+        with tempfile.TemporaryDirectory() as diretorio:
+            documento = Path(diretorio) / "hospital.md"
+            documento.write_text("Requisitos hospitalares", encoding="utf-8")
+            destino = Path(diretorio) / "relatorio.md"
+            codigo = orquestrador.main(
+                ["--ideia", "HIS", "--contexto", str(documento), "--dry-run", "--saida", str(destino)]
+            )
+            self.assertEqual(codigo, 0)
+            self.assertIn("HIS", destino.read_text(encoding="utf-8"))
+
+    def test_agente_dry_run_com_contexto(self):
+        resultado = executar_agente.executar_agente_autonomo(
+            "devops", "Validar fluxo", contexto_documentos="[DOCUMENTO: hospital.md]\nRegras", dry_run=True
+        )
+        self.assertIn("[DOCUMENTOS]", resultado)
+        self.assertIn("Regras", resultado)
 
 
 if __name__ == "__main__":

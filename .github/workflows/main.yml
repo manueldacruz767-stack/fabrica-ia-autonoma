@@ -7,6 +7,10 @@ on:
         description: 'Descreve a ideia do projeto'
         required: true
         default: 'Sistema de gestao de tarefas em tempo real com autenticacao'
+      contexto:
+        description: 'Ficheiro ou diretorio .md com documentos de contexto'
+        required: false
+        default: 'contexto/hospital'
 
 permissions:
   contents: write
@@ -19,6 +23,8 @@ jobs:
   executar-fabrica:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      FABRICA_CONTEXTO: ${{ github.event.inputs.contexto }}
 
     steps:
       - name: Checkout do repositorio
@@ -36,7 +42,7 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: Validar configuracao
-        run: python executar_agente.py --dry-run --agente devops --saida /tmp/validacao.md
+        run: python executar_agente.py --dry-run --agente devops --contexto "$FABRICA_CONTEXTO" --saida /tmp/validacao.md
 
       - name: Executar agente DevOps
         env:
@@ -52,6 +58,7 @@ jobs:
           python executar_agente.py \
             --agente devops \
             --tarefa "Analisa a ideia '$PROJETO_IDEIA' e produz um plano de automacao seguro para a fabrica de IA." \
+            --contexto "$FABRICA_CONTEXTO" \
             --comando "git status --short" \
             --saida relatorio_agente.md
 

@@ -3,6 +3,7 @@ import os
 import sys
 
 from fabrica_core import (
+    carregar_contexto,
     construir_prompt,
     gerar_texto,
     montar_relatorio,
@@ -34,6 +35,11 @@ AGENTES_TAREFAS = (
 def main(argv: list[str] | None = None) -> int:
     analisador = argparse.ArgumentParser(description="Orquestrador da Fabrica de IA Autonoma")
     analisador.add_argument("--ideia", default=os.getenv("PROJETO_IDEIA", "Sistema de gestao de tarefas"), help="Ideia do projeto")
+    analisador.add_argument(
+        "--contexto",
+        default=os.getenv("FABRICA_CONTEXTO", ""),
+        help="Ficheiro ou diretorio .md com documentos de contexto",
+    )
     analisador.add_argument("--saida", default="projeto_final.md", help="Caminho do relatorio gerado")
     analisador.add_argument("--modelo", default=None, help="Modelo Gemini preferido")
     analisador.add_argument("--tentativas", type=int, default=2, help="Tentativas por modelo")
@@ -44,11 +50,20 @@ def main(argv: list[str] | None = None) -> int:
         print("Erro: GEMINI_API_KEY nao encontrada. Define o segredo no GitHub ou a variavel no .env.", file=sys.stderr)
         return 2
 
+    try:
+        documentos = carregar_contexto(argumentos.contexto)
+    except (OSError, ValueError) as exc:
+        print(f"Erro ao carregar contexto: {exc}", file=sys.stderr)
+        return 1
+
     print(f"[Fabrica] Ideia recebida: {argumentos.ideia}")
+    if documentos:
+        print(f"[Fabrica] Contexto carregado: {len(documentos)} caracteres")
     secoes = []
 
     for agente, tarefa in AGENTES_TAREFAS:
-        prompt = construir_prompt(agente, tarefa, f"Ideia do projeto: {argumentos.ideia}")
+        contexto = f"Ideia do projeto: {argumentos.ideia}\n{documentos}".strip()
+        prompt = construir_prompt(agente, tarefa, contexto)
         if argumentos.dry_run:
             texto = texto_validacao(agente, tarefa)
             modelo = None

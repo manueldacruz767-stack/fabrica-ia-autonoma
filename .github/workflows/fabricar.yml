@@ -7,6 +7,10 @@ on:
         description: 'Qual e a ideia do projeto que a IA deve criar?'
         required: true
         default: 'Um sistema de gestao de tarefas com login'
+      contexto:
+        description: 'Ficheiro ou diretorio .md com documentos de contexto'
+        required: false
+        default: 'contexto/hospital'
 
 permissions:
   contents: write
@@ -19,6 +23,8 @@ jobs:
   construir-projeto:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      FABRICA_CONTEXTO: ${{ github.event.inputs.contexto }}
 
     steps:
       - name: Clonar repositorio
@@ -36,7 +42,7 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: Validar configuracao
-        run: python orquestrador.py --dry-run --ideia validacao --saida /tmp/validacao.md
+        run: python orquestrador.py --dry-run --ideia validacao --contexto "$FABRICA_CONTEXTO" --saida /tmp/validacao.md
 
       - name: Executar equipa de agentes
         env:
@@ -48,7 +54,7 @@ jobs:
           GH_TOKEN: ${{ secrets.FABRICA_GH_TOKEN }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: python orquestrador.py --ideia "$PROJETO_IDEIA" --saida projeto_final.md
+        run: python orquestrador.py --ideia "$PROJETO_IDEIA" --contexto "$FABRICA_CONTEXTO" --saida projeto_final.md
 
       - name: Guardar relatorio como artifact
         uses: actions/upload-artifact@v4

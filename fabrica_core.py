@@ -79,6 +79,38 @@ def carregar_skill(nome_agente: str) -> str:
     return f"Atua como especialista em {nome_base}, com rigor técnico e boas práticas."
 
 
+def carregar_contexto(caminho: str | Path | None, limite: int = 120000) -> str:
+    if not caminho:
+        return ""
+    origem = Path(caminho)
+    if not origem.is_absolute():
+        origem = RAIZ / origem
+    if origem.is_dir():
+        arquivos = sorted(item for item in origem.rglob("*.md") if item.is_file())
+    elif origem.is_file():
+        arquivos = [origem]
+    else:
+        raise ValueError(f"caminho de contexto nao encontrado: {origem}")
+    blocos: list[str] = []
+    total = 0
+    for arquivo in arquivos:
+        try:
+            nome = arquivo.relative_to(RAIZ)
+        except ValueError:
+            nome = Path(arquivo.name)
+        cabecalho = f"[DOCUMENTO: {nome}]\n"
+        conteudo = arquivo.read_text(encoding="utf-8", errors="replace").strip()
+        bloco = cabecalho + conteudo + "\n"
+        if total + len(bloco) > limite:
+            restante = limite - total
+            if restante > 0:
+                blocos.append(bloco[:restante] + "\n[... contexto truncado ...]")
+            break
+        blocos.append(bloco)
+        total += len(bloco)
+    return "\n".join(blocos).strip()
+
+
 def construir_prompt(agente: str, tarefa: str, contexto: str = "") -> str:
     bloco_contexto = f"\n[CONTEXTO_OPERACIONAL]\n{contexto.strip()}\n" if contexto and contexto.strip() else ""
     return (
