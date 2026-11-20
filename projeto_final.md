@@ -1,52 +1,61 @@
 # Fabrica de IA Autonoma - Relatorio Final
 
-**Ideia:** Validacao final com acoes externas
+**Ideia:** FutPremier - Fabrica de IA Autonoma
 
 ## scrum_master
 
 _Modelo: gemini-3.1-flash-lite_
 
-Como Scrum Master, apresento o Backlog da Versão 0.1 para o projeto "Validação final com ações externas". O foco desta versão é estabelecer a infraestrutura de comunicação e a lógica de gatilhos para sistemas externos.
+Como Scrum Master da **FutPremier - Fábrica de IA Autónoma**, apresento o planeamento da Versão 0.1. O foco desta fase é a infraestrutura base e a capacidade de processamento de dados de futebol.
 
-### Backlog da Versão 0.1
+---
+
+### Backlog da Versão 0.1 (MVP)
 
 | ID | História de Utilizador | Prioridade | Sprint |
 | :--- | :--- | :--- | :--- |
-| US01 | Como sistema, quero definir um endpoint de receção para validar ações externas. | Alta | 1 |
-| US02 | Como utilizador, quero receber uma confirmação de sucesso/erro após a validação. | Alta | 1 |
-| US03 | Como sistema, quero registar o histórico de todas as validações recebidas. | Média | 2 |
-| US04 | Como administrador, quero configurar os parâmetros de segurança para ações externas. | Média | 2 |
+| US01 | Configuração do ambiente de ingestão de dados de ligas europeias. | Alta | 1 |
+| US02 | Desenvolvimento do motor de análise de performance de jogadores. | Alta | 1 |
+| US03 | Implementação da API de interface para consulta de métricas. | Média | 2 |
+| US04 | Criação do módulo de relatórios automatizados de scouting. | Média | 2 |
 
 ---
 
-### Critérios de Aceitação
+### Detalhe das Tarefas e Critérios de Aceitação
 
-#### US01: Endpoint de Validação
-- O endpoint deve aceitar requisições POST com payload JSON.
-- Deve validar a estrutura do esquema de dados antes de processar.
-- Retorno de erro 400 para payloads malformados.
+#### Sprint 1: Fundação e Ingestão
+**US01: Ingestão de Dados**
+*   **Tarefas:** Configurar conectores com fontes de dados (APIs de futebol), estruturar base de dados relacional.
+*   **Critérios de Aceitação:**
+    1. Conexão estabelecida com pelo menos 3 ligas principais.
+    2. Dados brutos armazenados com sucesso em formato JSON/SQL.
+    3. Validação de integridade de dados (ausência de valores nulos críticos).
 
-#### US02: Confirmação de Validação
-- O sistema deve responder com um código HTTP 200 para validações bem-sucedidas.
-- O corpo da resposta deve conter um ID único de transação.
-- O tempo de resposta deve ser inferior a 500ms.
+**US02: Motor de Análise**
+*   **Tarefas:** Criar algoritmos de cálculo de métricas (xG, passes decisivos, ocupação de espaço).
+*   **Critérios de Aceitação:**
+    1. O motor processa um jogo completo em menos de 5 minutos.
+    2. As métricas calculadas correspondem aos dados de entrada com margem de erro < 0.1%.
 
-#### US03: Registo de Histórico
-- Cada ação deve ser guardada com timestamp, payload original e status de validação.
-- O registo deve ser imutável após a gravação.
+#### Sprint 2: Interface e Output
+**US03: API de Consulta**
+*   **Tarefas:** Desenvolver endpoints para consulta de jogadores e equipas.
+*   **Critérios de Aceitação:**
+    1. Endpoints respondem em formato JSON.
+    2. Autenticação básica implementada.
+    3. Documentação Swagger/OpenAPI disponível.
 
-#### US04: Parâmetros de Segurança
-- Implementar verificação de *API Key* ou *Token* no cabeçalho da requisição.
-- Bloqueio automático após 5 tentativas falhadas de autenticação.
+**US04: Relatórios de Scouting**
+*   **Tarefas:** Criar template de relatório PDF/Markdown baseado nos dados processados.
+*   **Critérios de Aceitação:**
+    1. Relatório gerado automaticamente após o processamento de cada jogo.
+    2. Inclusão de indicadores de performance (KPIs) definidos na US02.
 
 ---
 
-### Planeamento de Sprints
-
-*   **Sprint 1 (Duração: 1 semana):** Foco na conectividade e lógica de validação (US01, US02).
-*   **Sprint 2 (Duração: 1 semana):** Foco na persistência de dados e segurança (US03, US04).
-
-**Nota:** A comunicação entre os agentes de desenvolvimento e QA deve ser realizada via canal de sincronização diária para garantir que os critérios de aceitação sejam validados em tempo real.
+### Notas de Comunicação
+*   **Sincronização:** As equipas de Engenharia de Dados e IA devem reunir-se diariamente (Daily Scrum) para garantir que a estrutura de dados da US01 suporta os algoritmos da US02.
+*   **Qualidade:** Nenhum código será considerado concluído sem a passagem nos testes unitários definidos nos critérios de aceitação.
 
 ---
 
@@ -54,50 +63,60 @@ Como Scrum Master, apresento o Backlog da Versão 0.1 para o projeto "Validaçã
 
 _Modelo: gemini-3.1-flash-lite_
 
-Como Arquiteto de Software, apresento a proposta de arquitetura para o projeto de **Validação Final com Ações Externas**. O foco é manter a simplicidade, a escalabilidade e a separação clara de responsabilidades.
+Como Arquiteto de Software, apresento a proposta estrutural para o **FutPremier - Fábrica de IA Autónoma**. O foco é a separação de responsabilidades, escalabilidade e a utilização da stack híbrida definida.
+
+---
 
 ### 1. Stack Tecnológica
-*   **Frontend:** Next.js (React) com TypeScript.
-*   **Backend (API):** Next.js API Routes (Serverless Functions).
-*   **Base de Dados Relacional:** Supabase (PostgreSQL) para gestão de utilizadores, estados de validação e dados estruturados.
-*   **Base de Dados NoSQL/Logs:** MongoDB Atlas para armazenamento de logs de auditoria, eventos de ações externas e telemetria.
-*   **Infraestrutura:** Vercel (Hosting) e integração via Webhooks para as ações externas.
+*   **Backend:** Node.js (TypeScript) com NestJS (Modularidade).
+*   **Frontend:** Next.js (SSR/SSG para performance).
+*   **Base de Dados Relacional:** Supabase (PostgreSQL) para gestão de utilizadores, ligas, apostas e dados transacionais.
+*   **Base de Dados NoSQL:** MongoDB Atlas para armazenamento de logs de execução da IA, histórico de prompts e dados não estruturados de análise de jogos.
+*   **Infraestrutura:** Vercel (Frontend/API) + Supabase (Auth/DB) + MongoDB Atlas (Cloud).
 
 ---
 
 ### 2. Arquitetura em Camadas
 
-A arquitetura está organizada para garantir que a lógica de negócio esteja isolada da persistência e da interface.
+A arquitetura segue o padrão de **Clean Architecture**, garantindo que a lógica de negócio seja independente de frameworks e bases de dados.
 
-#### A. Camada de Apresentação (Frontend)
-*   **Responsabilidade:** Interface do utilizador e gestão de estado local.
-*   **Componentes:** UI Components (Tailwind CSS), Hooks de integração com a API.
+#### A. Camada de Apresentação (Interface)
+*   **Componente:** Next.js.
+*   **Responsabilidade:** Renderização da interface do utilizador, gestão de estado global e consumo da API via SDK do Supabase.
 
-#### B. Camada de Aplicação (API/Serviços)
-*   **Responsabilidade:** Orquestração de regras de negócio e validação.
-*   **Componentes:** 
-    *   *Service Layer:* Processamento da lógica de validação.
-    *   *External Integration Layer:* Gestão de chamadas para serviços externos (Webhooks/APIs de terceiros).
+#### B. Camada de Aplicação (API Gateway / Orquestração)
+*   **Componente:** NestJS (Controllers e Services).
+*   **Responsabilidade:** Validação de inputs, orquestração de chamadas entre serviços de IA e persistência de dados.
 
-#### C. Camada de Persistência (Dados)
-*   **Supabase (PostgreSQL):** Armazena o "Estado da Verdade" (ex: `users`, `validation_tasks`, `permissions`).
-*   **MongoDB Atlas:** Armazena o histórico de eventos (ex: `external_action_logs`, `system_events`).
+#### C. Camada de Domínio (Core Business)
+*   **Componente:** Entidades e Casos de Uso.
+*   **Responsabilidade:** Regras de negócio da "Fábrica de IA" (ex: lógica de decisão de apostas, processamento de métricas). Não conhece a base de dados.
 
----
-
-### 3. Limites e Fluxo de Dados
-
-1.  **Entrada:** O utilizador submete uma validação via Frontend.
-2.  **Processamento:** A API valida a integridade no **Supabase**.
-3.  **Ação Externa:** O sistema dispara uma ação externa (ex: envio de notificação ou atualização em sistema legado).
-4.  **Auditoria:** O resultado da ação externa e os logs de execução são gravados de forma assíncrona no **MongoDB Atlas**, garantindo que a performance da transação principal não seja afetada.
+#### D. Camada de Infraestrutura (Data Access)
+*   **Componente:** Repositórios.
+*   **Responsabilidade:** 
+    *   **Supabase Client:** Persistência relacional (Users, Wallets, Matches).
+    *   **MongoDB Driver:** Persistência de logs de IA e telemetria de performance.
 
 ---
 
-### 4. Segurança e Performance
-*   **Segurança:** Autenticação via Supabase Auth (JWT). Implementação de *Row Level Security* (RLS) no PostgreSQL para garantir que cada utilizador apenas aceda aos seus dados.
-*   **Performance:** Utilização de *Serverless Functions* para escalar automaticamente conforme a procura e cache de leitura no Frontend via SWR/React Query.
-*   **Isolamento:** A separação entre o PostgreSQL (dados críticos) e o MongoDB (logs/eventos) impede que o crescimento do volume de logs degrade a performance das consultas relacionais.
+### 3. Limites e Integração
+
+*   **Isolamento de Dados:**
+    *   O **Supabase** atua como a "fonte da verdade" para o estado do sistema e autenticação.
+    *   O **MongoDB** atua como um "Data Lake" para observabilidade e análise histórica da IA, garantindo que o PostgreSQL não seja sobrecarregado com logs de alta frequência.
+*   **Segurança:**
+    *   Utilização de *Row Level Security* (RLS) no Supabase para garantir que cada utilizador aceda apenas aos seus dados.
+    *   Variáveis de ambiente segregadas para chaves de API de IA (ex: OpenAI/Anthropic) e strings de conexão das bases de dados.
+
+---
+
+### 4. Fluxo de Execução (Exemplo)
+1.  O utilizador solicita uma análise via **Frontend**.
+2.  O **NestJS** processa a lógica de negócio.
+3.  O sistema consulta o **Supabase** para validar permissões e dados da liga.
+4.  O sistema executa a IA e armazena o resultado/log no **MongoDB Atlas** para auditoria futura.
+5.  O resultado final é persistido no **Supabase** e retornado ao utilizador.
 
 ---
 
@@ -105,59 +124,54 @@ A arquitetura está organizada para garantir que a lógica de negócio esteja is
 
 _Modelo: gemini-3.1-flash-lite_
 
-Como Programador Full-Stack Sénior, apresento o plano de implementação para o sistema de **Validação Final com Ações Externas**. O foco é garantir a integridade dos dados, a escalabilidade da comunicação assíncrona e a resiliência do sistema.
+Como Programador Full-Stack Sénior, apresento o plano de implementação para o **FutPremier - Fábrica de IA Autónoma**. A arquitetura foca-se em microsserviços desacoplados, garantindo escalabilidade e modularidade.
 
 ---
 
-### 1. Arquitetura do Sistema
-O sistema seguirá uma arquitetura baseada em **Event-Driven Microservices**:
-*   **Backend (FastAPI/Python):** Processamento de regras de negócio, validações complexas e orquestração.
-*   **Worker/Service (Node.js/Fastify):** Gestão de integrações com APIs externas (webhooks, notificações, sistemas legados).
-*   **Mensageria (Redis/RabbitMQ):** Desacoplamento entre a validação e a execução de ações externas.
+### 1. Estrutura de Ficheiros (Arquitetura)
 
----
-
-### 2. Estrutura de Ficheiros
 ```text
-/root
-├── /api-gateway (FastAPI)
-│   ├── main.py           # Entrypoint e rotas
-│   ├── /services         # Lógica de validação (Domain Layer)
-│   └── /schemas          # Pydantic models (Validação de entrada)
-├── /worker-external (Fastify)
-│   ├── server.js         # Servidor de eventos
-│   ├── /integrations     # Adaptadores para APIs externas
-│   └── /queue            # Consumidor de mensagens
-└── /shared
-    └── logger.js/py      # Configuração de logs estruturados
+/futpremier-core
+├── /api-gateway (Node.js/Fastify)      # Orquestração e Auth
+├── /worker-ia (Python/FastAPI)         # Processamento de modelos e análise
+├── /data-pipeline (Python/Pandas)      # ETL de dados de futebol
+├── /shared-lib                         # Módulos reutilizáveis (logger, db-client)
+└── docker-compose.yml                  # Orquestração de ambiente
 ```
 
 ---
 
-### 3. Plano de Implementação (Ordenado)
+### 2. Responsabilidades por Módulo
 
-1.  **Definição de Contratos:** Estabelecer os esquemas (JSON Schema/Pydantic) para a entrada de dados e para a resposta das ações externas.
-2.  **Core de Validação (Python):** Implementar o motor de regras. Deve ser síncrono e retornar um estado de "Aprovado/Reprovado" com logs detalhados.
-3.  **Camada de Mensageria:** Configurar o broker para que, após a validação bem-sucedida, um evento seja disparado para a fila.
-4.  **Worker de Integração (Node.js):** Desenvolver o consumidor que escuta a fila e executa as chamadas externas (com *retry policy* e *circuit breaker*).
-5.  **Monitorização:** Implementar *Health Checks* em ambos os serviços e logs centralizados.
-
----
-
-### 4. Responsabilidades
-*   **API Gateway (Python):** Responsável pela integridade dos dados, autenticação e decisão final de validação.
-*   **Worker (Node.js):** Responsável pela resiliência das comunicações externas (tratar timeouts, erros de rede e respostas assíncronas).
+*   **API Gateway (Node.js):** Gestão de rotas, autenticação JWT, rate limiting e proxy para os serviços internos.
+*   **Worker IA (Python):** Motor de inferência. Recebe inputs, processa via modelos de ML (Scikit-learn/PyTorch) e retorna previsões.
+*   **Data Pipeline (Python):** Ingestão de dados via APIs externas, limpeza com Pandas e persistência em base de dados vetorial/relacional.
+*   **Shared Lib:** Contratos de interface, tratamento de erros centralizado e utilitários de logging.
 
 ---
 
-### 5. Riscos Técnicos
-*   **Consistência Eventual:** O risco de a validação ser aprovada, mas a ação externa falhar. *Mitigação:* Implementar um mecanismo de *Dead Letter Queue* (DLQ) para reprocessamento de falhas.
-*   **Latência de Integração:** APIs externas lentas podem bloquear o fluxo. *Mitigação:* Uso obrigatório de chamadas assíncronas e timeouts rigorosos no Node.js.
-*   **Race Conditions:** Múltiplas validações para o mesmo recurso. *Mitigação:* Implementar bloqueio otimista (versionamento) na base de dados.
+### 3. Plano de Implementação Ordenado
+
+1.  **Fase 1 (Infraestrutura):** Configuração do `docker-compose` e definição dos contratos de API (OpenAPI/Swagger).
+2.  **Fase 2 (Data Layer):** Implementação do `data-pipeline` para garantir a integridade dos dados de treino.
+3.  **Fase 3 (Core IA):** Desenvolvimento dos endpoints de inferência no `worker-ia` com FastAPI.
+4.  **Fase 4 (Gateway):** Implementação da camada de segurança e roteamento no `api-gateway`.
+5.  **Fase 5 (Monitorização):** Integração de logs estruturados e métricas de performance.
 
 ---
 
-Este plano está pronto para ser convertido em tarefas de desenvolvimento. Recomendo iniciar pela definição dos *schemas* de dados, pois estes servirão de contrato entre os dois serviços.
+### 4. Riscos Técnicos
+
+*   **Latência de Inferência:** O processamento de modelos complexos pode exceder o timeout do gateway. *Mitigação:* Implementar filas de mensagens (RabbitMQ/Redis) para processamento assíncrono.
+*   **Drift de Dados:** A qualidade dos dados de futebol varia. *Mitigação:* Implementar validação de schema rigorosa no pipeline de ingestão.
+*   **Escalabilidade do Estado:** O estado da IA autónoma pode tornar-se um gargalo. *Mitigação:* Utilizar armazenamento distribuído (Redis) para cache de contexto curto.
+
+---
+
+### 5. Padrões de Qualidade
+*   **Código:** Seguir *Clean Code* e *SOLID*.
+*   **Testes:** Cobertura mínima de 80% (PyTest para Python, Jest para Node.js).
+*   **Excepções:** Tratamento global de erros com códigos de estado HTTP padronizados e registo de stack trace em ambiente de desenvolvimento.
 
 ---
 
@@ -165,51 +179,51 @@ Este plano está pronto para ser convertido em tarefas de desenvolvimento. Recom
 
 _Modelo: gemini-3.1-flash-lite_
 
-Como Agente de Garantia de Qualidade (QA), apresento o plano de validação para o projeto de "Validação final com ações externas".
+Como Agente de Garantia de Qualidade (QA) para o projeto **FutPremier - Fábrica de IA Autónoma**, apresento o plano de testes estruturado para assegurar a robustez e a conformidade do sistema.
 
 ---
 
 ### 1. Plano de Testes Unitários
-Foco na validação da lógica isolada de cada componente de integração.
+Focados na lógica isolada dos módulos de IA e processamento de dados.
 
-*   **Comandos de Execução:**
-    *   `npm test -- --coverage` (ou equivalente para a stack do projeto).
+*   **Comandos Concretos:**
+    *   `pytest tests/unit/test_agent_logic.py`: Validar a tomada de decisão da IA.
+    *   `pytest tests/unit/test_data_parser.py`: Validar a normalização de inputs de dados de futebol.
 *   **Critérios de Conclusão:**
-    *   Cobertura de código mínima de 80%.
-    *   Mocking bem-sucedido de todas as APIs externas (nenhuma chamada real durante testes unitários).
-    *   Zero falhas em funções de tratamento de erros (ex: timeouts, 404, 500).
+    *   Cobertura de código mínima de 85%.
+    *   Zero falhas em testes de lógica de decisão (ex: predição de resultados).
 
 ### 2. Plano de Testes de Integração
-Foco na comunicação entre o sistema e os serviços externos.
+Focados na comunicação entre os módulos da Fábrica de IA e APIs externas.
 
-*   **Comandos de Execução:**
-    *   `npm run test:integration` (execução em ambiente de staging/sandbox).
+*   **Comandos Concretos:**
+    *   `pytest tests/integration/test_api_flow.py`: Verificar a persistência de dados entre a IA e a base de dados.
+    *   `pytest tests/integration/test_external_provider.py`: Validar a integridade da resposta das APIs de estatísticas desportivas.
 *   **Critérios de Conclusão:**
-    *   Sucesso na autenticação com serviços externos (OAuth/API Keys).
-    *   Validação do payload de envio e parsing da resposta (JSON schema validation).
-    *   Verificação de logs de transação para garantir que a ação externa foi registada corretamente.
+    *   Sucesso na troca de mensagens entre o orquestrador e os agentes.
+    *   Tratamento de erros (timeouts/404) implementado e funcional.
 
 ### 3. Plano de Testes de Aceitação (UAT)
-Foco na validação dos critérios do Scrum Master e experiência do utilizador final.
+Validação baseada nos critérios do Scrum Master para o FutPremier.
 
-*   **Comandos de Execução:**
-    *   `npx cypress run` (ou ferramenta de E2E equivalente).
+*   **Comandos Concretos:**
+    *   `python scripts/run_acceptance_suite.py --scenario full_cycle`: Executar o fluxo completo de uma análise de jogo.
 *   **Critérios de Conclusão:**
-    *   **Fluxo Feliz:** A ação externa é disparada e confirmada pelo sistema em menos de 5 segundos.
-    *   **Fluxo de Erro:** O sistema apresenta uma mensagem de erro amigável ao utilizador caso a ação externa falhe.
-    *   **Consistência:** O estado da interface reflete exatamente o resultado da ação externa após a conclusão.
+    *   A IA deve gerar um relatório de predição formatado conforme o template definido.
+    *   O tempo de resposta do sistema deve ser inferior a 5 segundos por análise.
+    *   Os resultados devem ser auditáveis através dos logs de execução.
 
 ---
 
-### 4. Protocolo de Reporte de Bugs
-Qualquer falha detetada durante a execução dos planos acima deve ser reportada seguindo a estrutura:
+### Procedimento de Reporte de Bugs
+Qualquer falha detetada durante a execução dos comandos acima deve ser registada seguindo o formato:
+1.  **ID do Bug:** [Data]-[Módulo]-[Breve Descrição]
+2.  **Passos para Reproduzir:** (Comandos exatos utilizados)
+3.  **Resultado Esperado:** (O que deveria ter ocorrido)
+4.  **Resultado Obtido:** (O erro retornado)
+5.  **Severidade:** (Crítica/Alta/Média/Baixa)
 
-1.  **ID do Bug:** [B-00X]
-2.  **Descrição:** O que falhou?
-3.  **Passos para Reproduzir:** Comandos ou ações exatas.
-4.  **Resultado Esperado vs. Atual.**
-5.  **Severidade:** (Crítica, Alta, Média, Baixa).
-
-*Nota: Nenhuma funcionalidade será considerada pronta para produção sem a aprovação explícita de todos os critérios de aceitação listados acima.*
+---
+*Nota: Este plano está pronto para ser aplicado no ambiente de desenvolvimento. Aguardo a disponibilização do repositório para iniciar a execução dos testes.*
 
 ---
