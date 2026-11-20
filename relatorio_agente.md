@@ -1,32 +1,32 @@
-### Plano de Automação: Validação Final da Fábrica de IA
+### Plano de Automação: Validação com Ações Externas
 
-Este plano estabelece o fluxo de trabalho para garantir que a "Validação final do agente" seja integrada de forma segura e automatizada no ciclo de vida da nossa infraestrutura.
-
----
-
-#### 1. Estrutura de Repositório (CLI `gh`)
-Para garantir a rastreabilidade, a validação será tratada como uma *feature branch*.
-*   **Ação:** Criar repositório ou branch via `gh repo create` ou `gh branch`.
-*   **Verificação:** Confirmar que o `remote` está configurado para o GitHub e que as permissões de escrita estão restritas ao utilizador autenticado.
-
-#### 2. Pipeline de CI/CD (GitHub Actions)
-A validação será disparada automaticamente em cada *push* para a branch `main` ou *pull request*.
-*   **Workflow:**
-    1.  **Linting:** Verificação de sintaxe do código do agente.
-    2.  **Security Scan:** Execução de `gitleaks` para garantir que nenhuma credencial foi exposta no código.
-    3.  **Testes de Integração:** Simulação da resposta do agente num ambiente isolado.
-*   **Segurança:** Utilização de `secrets` do GitHub para injetar variáveis de ambiente (API Keys) sem exposição direta no código.
-
-#### 3. Gestão de Deploy (Vercel/Render)
-A validação final só será promovida para produção após o sucesso dos testes.
-*   **Vercel:** Utilização de *Preview Deployments* para validar o comportamento do agente em ambiente de staging.
-*   **Render:** Monitorização de logs de build via CLI para garantir que o serviço de backend (se aplicável) subiu sem erros de configuração.
-*   **Rollback:** Em caso de falha na validação, o sistema deve manter a versão anterior estável (estratégia de *blue-green deployment*).
-
-#### 4. Sincronização e Auditoria (Fedora)
-*   **Ambiente Local:** Manter o ambiente Fedora sincronizado via `git pull --rebase` antes de qualquer alteração.
-*   **Auditoria:** Todos os comandos de infraestrutura executados localmente devem ser registados no histórico do shell (`.bash_history` ou `.zsh_history`) para revisão posterior.
-*   **Validação:** O estado final da "Fábrica de IA" será confirmado através de um *status check* no GitHub, garantindo que o agente passou em todos os testes de segurança e performance antes do merge final.
+Para integrar validações externas na fábrica de IA, o foco será garantir que o pipeline de CI/CD não apenas compile o código, mas verifique a integridade dos modelos e respostas através de *endpoints* de teste.
 
 ---
-*Nota: Este plano está pronto para implementação. Aguardo a confirmação do ambiente para iniciar a execução dos comandos de infraestrutura.*
+
+#### 1. Estrutura de Validação (Pipeline)
+A automação será dividida em três camadas de verificação dentro do `GitHub Actions`:
+*   **Camada de Linting:** Verificação estática de código e segurança (`bandit` para Python, `eslint` para JS).
+*   **Camada de Integração:** Execução de testes que consultam APIs externas (mockadas ou *staging*) para validar a lógica de negócio.
+*   **Camada de *Smoke Test*:** Após o deploy na Vercel/Render, um *job* final verifica se o serviço responde com `HTTP 200`.
+
+#### 2. Segurança e Gestão de Segredos
+*   **Variáveis de Ambiente:** Nenhuma chave de API será codificada. Utilizaremos o `GitHub Secrets` para injetar credenciais em tempo de execução.
+*   **Princípio do Menor Privilégio:** Os *tokens* de deploy (Vercel/Render) terão permissão apenas para o escopo necessário, sem acesso total à conta.
+*   **Validação de Inputs:** Qualquer dado vindo de fontes externas será sanitizado antes de ser processado pelos modelos de IA.
+
+#### 3. Fluxo de Trabalho (Workflow)
+O ficheiro `.github/workflows/main.yml` seguirá este padrão:
+1.  **Checkout:** Sincronização do repositório local (Fedora) com a nuvem.
+2.  **Setup:** Instalação de dependências e configuração do ambiente.
+3.  **Testes:** Execução de scripts de validação externa.
+4.  **Deploy:** Se os testes passarem, o comando de deploy é disparado.
+5.  **Notificação:** Feedback automático sobre o sucesso ou falha da validação.
+
+#### 4. Verificação de Integridade
+Para garantir a sincronização entre o ambiente local e a nuvem:
+*   **Comando de Verificação:** `gh workflow run` será utilizado para disparar testes manuais de validação antes de qualquer *merge*.
+*   **Monitorização:** Logs de erro serão centralizados no GitHub Actions para auditoria rápida.
+
+---
+*Nota: Este plano está pronto para implementação. Recomendo a criação de um ficheiro `tests/external_validation.py` para definir os critérios de sucesso das ações externas antes de integrar no pipeline.*
