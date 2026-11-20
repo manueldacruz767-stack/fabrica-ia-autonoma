@@ -49,6 +49,14 @@ class TestesFabricaCore(unittest.TestCase):
         with self.assertRaises(ValueError):
             fabrica_core.validar_comando("git status && rm -rf /")
 
+    def test_python_arbitrario_e_bloqueado(self):
+        with self.assertRaises(ValueError):
+            fabrica_core.validar_comando("python3 -c print(1)")
+
+    def test_subcomando_nao_permitido(self):
+        with self.assertRaises(ValueError):
+            fabrica_core.validar_comando("git push --force")
+
     def test_deploy_producao_e_bloqueado(self):
         with self.assertRaises(ValueError):
             fabrica_core.validar_comando("vercel deploy --prod")

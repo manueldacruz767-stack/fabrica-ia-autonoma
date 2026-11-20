@@ -26,7 +26,16 @@ MODELOS_PADRAO = (
 
 VALORES_VERDADEIROS = {"1", "true", "sim", "yes", "on"}
 OPERADORES_PERIGOSOS = (";", "&&", "||", "|", "`", "$(", ">", "<", "\n", "\r")
-COMANDOS_PERMITIDOS = {"git", "gh", "python", "python3", "npm", "pip", "pip3", "ls", "vercel", "docker"}
+COMANDOS_PERMITIDOS = {
+    "git": {"status", "log", "diff", "remote", "branch"},
+    "gh": {"auth", "repo", "run", "workflow"},
+    "npm": {"--version", "list"},
+    "pip": {"--version", "list", "show"},
+    "pip3": {"--version", "list", "show"},
+    "ls": set(),
+    "vercel": {"--version", "whoami", "list", "deploy"},
+    "docker": {"--version", "ps"},
+}
 NOME_SKILL_VALIDO = re.compile(r"^[a-zA-Z0-9_-]+$")
 
 
@@ -142,6 +151,9 @@ def validar_comando(comando: str) -> list[str]:
         raise ValueError("comando malformado") from exc
     if not partes or partes[0] not in COMANDOS_PERMITIDOS:
         raise ValueError(f"comando nao permitido: {partes[0] if partes else 'vazio'}")
+    subcomandos = COMANDOS_PERMITIDOS[partes[0]]
+    if subcomandos and (len(partes) < 2 or partes[1] not in subcomandos):
+        raise ValueError(f"subcomando nao permitido para {partes[0]}")
     if partes[0] == "vercel" and "--prod" in partes:
         raise ValueError("deploy em producao bloqueado; usa apenas preview")
     return partes
@@ -168,7 +180,7 @@ def executar_comando(comando: str, cwd: str | None = None, timeout: int = 60) ->
         return f"[ERRO] {type(exc).__name__}: {exc}"
     estado = "OK" if resultado.returncode == 0 else f"FALHOU ({resultado.returncode})"
     corpo = "\n".join(parte for parte in ((resultado.stdout or "").strip(), (resultado.stderr or "").strip()) if parte)
-    return f"[{estado}] {comando}\n{corpo}".rstrip()
+    return f"[{estado}] {comando}\n{corpo[:4000]}".rstrip()
 
 
 def montar_relatorio(ideia: str, secoes: list[tuple[str, str, str | None]]) -> str:

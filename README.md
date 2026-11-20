@@ -52,6 +52,7 @@ Variables opcionais:
 
 - `GEMINI_MODEL` (por omissao usa `gemini-3.1-flash-lite`)
 - `PROJETO_IDEIA` (usado pelo fluxo 24/7)
+- `FABRICA_ACOES_EXTERNAS` (define se os comandos de sistema sao executados)
 
 Os fluxos validam a configuracao em modo seco, geram o relatorio, fazem upload do artifact e commitam o ficheiro gerado. O segredo antigo `GOOCLE_API_KEY` nao e utilizado.
 
@@ -70,11 +71,17 @@ O codigo tenta modelos por ordem e alterna automaticamente quando um modelo devo
 
 ## Acoes externas
 
-Por omissao, nenhum comando de sistema, criacao de repositorio, deploy ou escrita em base de dados e executado. Para autorizar comandos de sistema:
+As acoes externas sao controladas pela variavel de repositorio `FABRICA_ACOES_EXTERNAS` (ativada neste repositorio). Para desativar: `gh variable set FABRICA_ACOES_EXTERNAS --body false`.
+
+Comandos permitidos: `git status/log/diff/remote/branch`, `gh auth/repo/run/workflow`, `vercel --version/whoami/list/deploy`, `npm/pip --version/list`, `ls`, `docker --version/ps`. Python arbitrario, encadeamentos e `vercel --prod` sao bloqueados.
+
+Localmente:
 
 ```bash
 FABRICA_ACOES_EXTERNAS=1 python executar_agente.py --comando "git status --short"
 ```
+
+Secrets usados nos workflows: `GEMINI_API_KEY`, `SERPER_API_KEY`, `FABRICA_GH_TOKEN`, `VERCEL_TOKEN`, `DATABASE_URL`.
 
 A fabrica completa com CrewAI e agentes adicionais e opt-in:
 

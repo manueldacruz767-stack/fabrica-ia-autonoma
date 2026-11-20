@@ -42,12 +42,17 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
-          FABRICA_ACOES_EXTERNAS: 'false'
+          FABRICA_ACOES_EXTERNAS: ${{ vars.FABRICA_ACOES_EXTERNAS || 'false' }}
           PROJETO_IDEIA: ${{ github.event.inputs.ideia_projeto }}
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+          GH_TOKEN: ${{ secrets.FABRICA_GH_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           python executar_agente.py \
             --agente devops \
             --tarefa "Analisa a ideia '$PROJETO_IDEIA' e produz um plano de automacao seguro para a fabrica de IA." \
+            --comando "git status --short" \
             --saida relatorio_agente.md
 
       - name: Guardar relatorio como artifact

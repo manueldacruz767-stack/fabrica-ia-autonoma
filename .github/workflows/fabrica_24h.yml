@@ -39,8 +39,12 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
-          FABRICA_ACOES_EXTERNAS: 'false'
+          FABRICA_ACOES_EXTERNAS: ${{ vars.FABRICA_ACOES_EXTERNAS || 'false' }}
           PROJETO_IDEIA: ${{ vars.PROJETO_IDEIA }}
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+          GH_TOKEN: ${{ secrets.FABRICA_GH_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           IDEIA="${PROJETO_IDEIA:-FutPremier - Execucao autonoma 24h}"
           python orquestrador.py --ideia "$IDEIA" --saida projeto_final.md
