@@ -1,61 +1,99 @@
 # Fabrica de IA Autonoma - Relatorio Final
 
-**Ideia:** FutPremier - Fabrica de IA Autonoma
+**Ideia:** Sistema de Gestão Hospitalar Pública (HIS)
 
 ## scrum_master
 
 _Modelo: gemini-3.1-flash-lite_
 
-Como Scrum Master da **FutPremier - Fábrica de IA Autónoma**, apresento o planeamento da Versão 0.1. O foco desta fase é a infraestrutura base e a capacidade de processamento de dados de futebol.
+Como Scrum Master, apresento o Backlog da **Versão 0.1 (MVP - Mínimo Produto Viável)** para o Sistema de Gestão Hospitalar (HIS). O foco desta versão é estabelecer a fundação de segurança (RBAC), a jornada clínica básica na Urgência e a gestão de ativos essenciais.
 
 ---
 
-### Backlog da Versão 0.1 (MVP)
+### Sprint 1: Fundação, Segurança e Infraestrutura
+*Objetivo: Estabelecer a base tecnológica, autenticação e o modelo de dados central.*
 
-| ID | História de Utilizador | Prioridade | Sprint |
-| :--- | :--- | :--- | :--- |
-| US01 | Configuração do ambiente de ingestão de dados de ligas europeias. | Alta | 1 |
-| US02 | Desenvolvimento do motor de análise de performance de jogadores. | Alta | 1 |
-| US03 | Implementação da API de interface para consulta de métricas. | Média | 2 |
-| US04 | Criação do módulo de relatórios automatizados de scouting. | Média | 2 |
+1. **US01 - Autenticação e RBAC (Controlo de Acesso)**
+   - **Prioridade:** Alta
+   - **Critérios de Aceitação:**
+     - Utilizador autentica-se com credenciais únicas.
+     - O sistema bloqueia o acesso a módulos baseados no perfil (Médico, Enfermeiro, Administrativo).
+     - Logs de acesso registam tentativa de login e perfil ativo.
 
----
-
-### Detalhe das Tarefas e Critérios de Aceitação
-
-#### Sprint 1: Fundação e Ingestão
-**US01: Ingestão de Dados**
-*   **Tarefas:** Configurar conectores com fontes de dados (APIs de futebol), estruturar base de dados relacional.
-*   **Critérios de Aceitação:**
-    1. Conexão estabelecida com pelo menos 3 ligas principais.
-    2. Dados brutos armazenados com sucesso em formato JSON/SQL.
-    3. Validação de integridade de dados (ausência de valores nulos críticos).
-
-**US02: Motor de Análise**
-*   **Tarefas:** Criar algoritmos de cálculo de métricas (xG, passes decisivos, ocupação de espaço).
-*   **Critérios de Aceitação:**
-    1. O motor processa um jogo completo em menos de 5 minutos.
-    2. As métricas calculadas correspondem aos dados de entrada com margem de erro < 0.1%.
-
-#### Sprint 2: Interface e Output
-**US03: API de Consulta**
-*   **Tarefas:** Desenvolver endpoints para consulta de jogadores e equipas.
-*   **Critérios de Aceitação:**
-    1. Endpoints respondem em formato JSON.
-    2. Autenticação básica implementada.
-    3. Documentação Swagger/OpenAPI disponível.
-
-**US04: Relatórios de Scouting**
-*   **Tarefas:** Criar template de relatório PDF/Markdown baseado nos dados processados.
-*   **Critérios de Aceitação:**
-    1. Relatório gerado automaticamente após o processamento de cada jogo.
-    2. Inclusão de indicadores de performance (KPIs) definidos na US02.
+2. **US02 - Registo de Paciente (Admissão)**
+   - **Prioridade:** Alta
+   - **Critérios de Aceitação:**
+     - Criar ficha de paciente com dados básicos.
+     - Permitir registo de "Paciente Desconhecido" para casos de emergência.
+     - Gerar ID único de paciente (UUID).
 
 ---
 
-### Notas de Comunicação
-*   **Sincronização:** As equipas de Engenharia de Dados e IA devem reunir-se diariamente (Daily Scrum) para garantir que a estrutura de dados da US01 suporta os algoritmos da US02.
-*   **Qualidade:** Nenhum código será considerado concluído sem a passagem nos testes unitários definidos nos critérios de aceitação.
+### Sprint 2: Jornada Clínica na Urgência
+*Objetivo: Implementar o fluxo de atendimento de emergência, desde a triagem até ao desfecho.*
+
+3. **US03 - Triagem de Manchester**
+   - **Prioridade:** Alta
+   - **Critérios de Aceitação:**
+     - Enfermeiro regista sinais vitais e queixa principal.
+     - Sistema atribui cor de risco automaticamente.
+     - Fila de espera médica ordenada por prioridade (cor).
+
+4. **US04 - Prontuário Médico (Atendimento)**
+   - **Prioridade:** Alta
+   - **Critérios de Aceitação:**
+     - Médico visualiza histórico de triagem.
+     - Médico regista anamnese e hipótese diagnóstica.
+     - Médico emite prescrição de medicação (com validação de dose).
+
+---
+
+### Sprint 3: Gestão de Recursos e Logística Básica
+*Objetivo: Garantir que o médico tem o que prescrever e que o hospital gere o seu inventário.*
+
+5. **US05 - Gestão de Stock e Farmácia**
+   - **Prioridade:** Média
+   - **Critérios de Aceitação:**
+     - Baixa automática no stock após administração de medicamento.
+     - Alerta de rutura de stock para itens críticos (ex: antibióticos de urgência).
+     - Segregação de funções: Médico prescreve, Farmacêutico/Enfermeiro dispensa.
+
+6. **US06 - Gestão de Leitos e Higienização**
+   - **Prioridade:** Média
+   - **Critérios de Aceitação:**
+     - Visualização de mapa de leitos (Livre, Ocupado, Higienização).
+     - Gatilho automático: Alta Médica dispara tarefa de higienização para Serviços Gerais.
+     - Bloqueio de alocação de leito "Sujo".
+
+---
+
+### Sprint 4: Auditoria e Observabilidade
+*Objetivo: Garantir a conformidade legal e a saúde do sistema.*
+
+7. **US07 - Trilha de Auditoria (Audit Trail)**
+   - **Prioridade:** Alta
+   - **Critérios de Aceitação:**
+     - Cada alteração em prontuário ou movimento financeiro regista: `User_ID`, `Timestamp`, `Ação`, `Valor_Anterior`, `Valor_Novo`.
+     - Logs imutáveis acessíveis apenas por perfil de Auditoria.
+
+8. **US08 - Monitorização de Saúde do Sistema**
+   - **Prioridade:** Média
+   - **Critérios de Aceitação:**
+     - Dashboard no Grafana com latência de API e uso de recursos.
+     - Alerta por e-mail/Slack se o serviço de mensageria (RabbitMQ) estiver inativo.
+
+---
+
+### Resumo do Planeamento de Sprints
+
+| Sprint | Foco Principal | Entregáveis Chave |
+| :--- | :--- | :--- |
+| **S1** | Infraestrutura | RBAC, Autenticação, Cadastro de Pacientes |
+| **S2** | Core Clínico | Triagem, Prontuário, Prescrição |
+| **S3** | Operações | Gestão de Stock, Gestão de Leitos |
+| **S4** | Governação | Auditoria, Monitorização, Estabilização |
+
+**Nota do Scrum Master:** Os critérios de aceitação foram desenhados para serem testáveis via testes de integração (Spring Boot/JUnit) e testes de aceitação de utilizador (UAT) com as equipas de enfermagem e medicina. A **Segregação de Funções (SoD)** será validada em cada sprint como requisito não-funcional obrigatório.
 
 ---
 
@@ -63,60 +101,77 @@ Como Scrum Master da **FutPremier - Fábrica de IA Autónoma**, apresento o plan
 
 _Modelo: gemini-3.1-flash-lite_
 
-Como Arquiteto de Software, apresento a proposta estrutural para o **FutPremier - Fábrica de IA Autónoma**. O foco é a separação de responsabilidades, escalabilidade e a utilização da stack híbrida definida.
+Como Arquiteto de Software, apresento a proposta de arquitetura para o Sistema de Gestão Hospitalar (HIS), focada em modularidade, integridade transacional e escalabilidade, seguindo rigorosamente a stack recomendada.
 
 ---
 
-### 1. Stack Tecnológica
-*   **Backend:** Node.js (TypeScript) com NestJS (Modularidade).
-*   **Frontend:** Next.js (SSR/SSG para performance).
-*   **Base de Dados Relacional:** Supabase (PostgreSQL) para gestão de utilizadores, ligas, apostas e dados transacionais.
-*   **Base de Dados NoSQL:** MongoDB Atlas para armazenamento de logs de execução da IA, histórico de prompts e dados não estruturados de análise de jogos.
-*   **Infraestrutura:** Vercel (Frontend/API) + Supabase (Auth/DB) + MongoDB Atlas (Cloud).
+### 1. Stack Tecnológica (Proporcional e Robusta)
+
+Para garantir a manutenção preventiva e a análise crítica exigidas, a stack escolhida prioriza a consistência de dados e a facilidade de manutenção:
+
+*   **Backend:** **Java 21 + Spring Boot 3.x**. Escolhido pela robustez em transações ACID, suporte nativo a máquinas de estado e facilidade na implementação de trilhas de auditoria (Spring Data Envers).
+*   **Frontend:** **Angular 17+**. Ideal para formulários complexos, tipagem forte e gestão de estado em sistemas corporativos de grande escala.
+*   **Banco de Dados Relacional (Core):** **Supabase (PostgreSQL)**. Essencial para a integridade dos dados clínicos e financeiros. Utilizaremos *Row Level Security* (RLS) para garantir que apenas utilizadores autorizados acedam a dados sensíveis.
+*   **Banco de Dados NoSQL/Logs:** **MongoDB Atlas**. Utilizado para armazenar logs de auditoria imutáveis, telemetria de equipamentos médicos e documentos clínicos não estruturados (JSONB).
+*   **Cache e Mensageria:** **Redis** (sessões e rate limiting) e **RabbitMQ** (comunicação assíncrona entre módulos e alertas críticos).
 
 ---
 
-### 2. Arquitetura em Camadas
+### 2. Arquitetura em Camadas (Modular Monolith)
 
-A arquitetura segue o padrão de **Clean Architecture**, garantindo que a lógica de negócio seja independente de frameworks e bases de dados.
+A arquitetura será organizada em **Bounded Contexts** (Módulos) dentro do mesmo deploy, permitindo o desacoplamento lógico e a futura extração para microsserviços.
 
-#### A. Camada de Apresentação (Interface)
-*   **Componente:** Next.js.
-*   **Responsabilidade:** Renderização da interface do utilizador, gestão de estado global e consumo da API via SDK do Supabase.
+#### A. Camada de Apresentação (Frontend)
+*   **SPA (Single Page Application):** Angular com *Lazy Loading* por módulo (ex.: Módulo de Urgência, Módulo de Internamento).
+*   **Comunicação:** API Gateway (Nginx) para roteamento e autenticação via JWT.
 
-#### B. Camada de Aplicação (API Gateway / Orquestração)
-*   **Componente:** NestJS (Controllers e Services).
-*   **Responsabilidade:** Validação de inputs, orquestração de chamadas entre serviços de IA e persistência de dados.
+#### B. Camada de Aplicação (Backend - Spring Boot)
+*   **Interface de Domínio:** Controladores REST organizados por contexto.
+*   **Service Layer:** Onde residem as **Máquinas de Estado** (ex.: `FluxoInternamentoService`).
+*   **Event Bus:** Disparo de eventos de domínio (ex.: `AltaMedicaRegistada`) via RabbitMQ para notificar outros módulos sem acoplamento direto.
 
-#### C. Camada de Domínio (Core Business)
-*   **Componente:** Entidades e Casos de Uso.
-*   **Responsabilidade:** Regras de negócio da "Fábrica de IA" (ex: lógica de decisão de apostas, processamento de métricas). Não conhece a base de dados.
-
-#### D. Camada de Infraestrutura (Data Access)
-*   **Componente:** Repositórios.
-*   **Responsabilidade:** 
-    *   **Supabase Client:** Persistência relacional (Users, Wallets, Matches).
-    *   **MongoDB Driver:** Persistência de logs de IA e telemetria de performance.
+#### C. Camada de Persistência (Híbrida)
+*   **PostgreSQL (Supabase):** Tabelas transacionais (Pacientes, Prescrições, Escalas, Financeiro).
+*   **MongoDB:** Coleções de auditoria (`AuditTrail`), logs de erros e telemetria de sensores hospitalares.
 
 ---
 
-### 3. Limites e Integração
+### 3. Limites e Regras de Segurança (RBAC/ABAC)
 
-*   **Isolamento de Dados:**
-    *   O **Supabase** atua como a "fonte da verdade" para o estado do sistema e autenticação.
-    *   O **MongoDB** atua como um "Data Lake" para observabilidade e análise histórica da IA, garantindo que o PostgreSQL não seja sobrecarregado com logs de alta frequência.
-*   **Segurança:**
-    *   Utilização de *Row Level Security* (RLS) no Supabase para garantir que cada utilizador aceda apenas aos seus dados.
-    *   Variáveis de ambiente segregadas para chaves de API de IA (ex: OpenAI/Anthropic) e strings de conexão das bases de dados.
+Para garantir a conformidade com o organograma hospitalar, aplicaremos:
+
+1.  **Segregação de Funções (SoD):** A camada de serviço valida se o utilizador possui o *claim* necessário antes de executar transações críticas (ex.: apenas `Diretor_Financeiro` pode aprovar empenhos).
+2.  **Trilha de Auditoria:** Interceptor global no Spring Boot que captura o contexto do utilizador e persiste a alteração no MongoDB antes de confirmar a transação no PostgreSQL.
+3.  **Break-the-Glass:** Endpoint de emergência que, ao ser acionado, eleva o nível de acesso temporariamente, disparando um evento de auditoria prioritário para a `Comissão de Ética`.
 
 ---
 
-### 4. Fluxo de Execução (Exemplo)
-1.  O utilizador solicita uma análise via **Frontend**.
-2.  O **NestJS** processa a lógica de negócio.
-3.  O sistema consulta o **Supabase** para validar permissões e dados da liga.
-4.  O sistema executa a IA e armazena o resultado/log no **MongoDB Atlas** para auditoria futura.
-5.  O resultado final é persistido no **Supabase** e retornado ao utilizador.
+### 4. Diagrama de Fluxo de Dados (Resumo)
+
+```mermaid
+graph TD
+    UI[Angular Frontend] --> Gateway[Nginx Gateway]
+    Gateway --> API[Spring Boot Monolith]
+    
+    subgraph "Persistência Híbrida"
+        API --> PG[(Supabase PostgreSQL)]
+        API --> MG[(MongoDB Atlas)]
+    end
+    
+    API --> RMQ[RabbitMQ]
+    RMQ --> Workers[Serviços de Background/Alertas]
+    
+    subgraph "Observabilidade"
+        API --> Prom[Prometheus/Grafana]
+    end
+```
+
+---
+
+### 5. Considerações de Escalabilidade
+*   **Stateless:** A aplicação não armazena estado de sessão local; toda a autenticação é validada via JWT + Redis.
+*   **Leitura Analítica:** Consultas pesadas de BI são direcionadas para uma **Réplica de Leitura** do PostgreSQL, garantindo que o atendimento clínico (escrita) nunca sofra latência por relatórios gerenciais.
+*   **Manutenção Preventiva:** Jobs agendados (Spring Batch) monitorizam diariamente a integridade dos dados e o estado de expiração de certificados e stocks críticos.
 
 ---
 
@@ -124,54 +179,94 @@ A arquitetura segue o padrão de **Clean Architecture**, garantindo que a lógic
 
 _Modelo: gemini-3.1-flash-lite_
 
-Como Programador Full-Stack Sénior, apresento o plano de implementação para o **FutPremier - Fábrica de IA Autónoma**. A arquitetura foca-se em microsserviços desacoplados, garantindo escalabilidade e modularidade.
+Este plano de implementação organiza o desenvolvimento do Sistema de Gestão Hospitalar (HIS) numa abordagem de **Monólito Modular**, garantindo a conformidade com as regras de negócio e a segregação de funções (SoD) exigidas.
 
 ---
 
-### 1. Estrutura de Ficheiros (Arquitetura)
+### 1. Estrutura de Diretórios (Modular Monolith)
+A estrutura segue o padrão de domínios (Bounded Contexts) para garantir desacoplamento lógico:
 
 ```text
-/futpremier-core
-├── /api-gateway (Node.js/Fastify)      # Orquestração e Auth
-├── /worker-ia (Python/FastAPI)         # Processamento de modelos e análise
-├── /data-pipeline (Python/Pandas)      # ETL de dados de futebol
-├── /shared-lib                         # Módulos reutilizáveis (logger, db-client)
-└── docker-compose.yml                  # Orquestração de ambiente
+/src
+  /modules
+    /urgencia          # Triagem, Admissão, Fluxo de Paciente
+    /internamento      # Gestão de Leitos, Prescrições, Bloco
+    /mdt               # Laboratório, Imagiologia, Farmácia
+    /administrativo    # RH, Compras, Finanças, Logística
+    /governacao        # Auditoria, Pareceres Jurídicos, BI
+  /shared
+    /infrastructure    # Database, Redis, RabbitMQ, Logger
+    /security          # RBAC/ABAC, JWT, Audit Trail
+    /utils             # Validações, Máquinas de Estado
 ```
 
 ---
 
-### 2. Responsabilidades por Módulo
+### 2. Fases de Implementação (Roadmap)
 
-*   **API Gateway (Node.js):** Gestão de rotas, autenticação JWT, rate limiting e proxy para os serviços internos.
-*   **Worker IA (Python):** Motor de inferência. Recebe inputs, processa via modelos de ML (Scikit-learn/PyTorch) e retorna previsões.
-*   **Data Pipeline (Python):** Ingestão de dados via APIs externas, limpeza com Pandas e persistência em base de dados vetorial/relacional.
-*   **Shared Lib:** Contratos de interface, tratamento de erros centralizado e utilitários de logging.
+#### Fase 1: Fundação e Segurança (Semanas 1-4)
+* **Objetivo:** Estabelecer o core de segurança e a trilha de auditoria.
+* **Entregáveis:**
+    * Configuração do PostgreSQL com particionamento (tabelas de auditoria).
+    * Implementação do middleware de **RBAC/ABAC** (baseado na matriz de permissões).
+    * Serviço de **Audit Trail** (interceptor global para registo de ações imutáveis).
+* **Risco:** Falha na captura de logs de auditoria (Mitigação: Testes unitários de interceptores).
+
+#### Fase 2: Ciclo Assistencial (Semanas 5-12)
+* **Objetivo:** Implementar a jornada clínica (Urgência e Internamento).
+* **Entregáveis:**
+    * Máquinas de estado para `Episódio` e `Leito`.
+    * Fluxo de Triagem (Manchester) e Prescrição Médica.
+    * Integração com Redis para painéis de senhas em tempo real.
+* **Risco:** Conflito de alocação de leitos (Mitigação: Bloqueios transacionais ACID no Postgres).
+
+#### Fase 3: Ciclo de Suporte e Logística (Semanas 13-20)
+* **Objetivo:** Gestão de recursos e workflow financeiro.
+* **Entregáveis:**
+    * Workflows de aprovação (Alçadas de aprovação para compras).
+    * Integração com RabbitMQ para notificações de rutura de stock.
+    * Módulo de RH (Escalas de turnos).
+* **Risco:** Quebra na segregação de funções (Mitigação: Validação de SoD no nível da camada de serviço).
 
 ---
 
-### 3. Plano de Implementação Ordenado
+### 3. Responsabilidades por Módulo
 
-1.  **Fase 1 (Infraestrutura):** Configuração do `docker-compose` e definição dos contratos de API (OpenAPI/Swagger).
-2.  **Fase 2 (Data Layer):** Implementação do `data-pipeline` para garantir a integridade dos dados de treino.
-3.  **Fase 3 (Core IA):** Desenvolvimento dos endpoints de inferência no `worker-ia` com FastAPI.
-4.  **Fase 4 (Gateway):** Implementação da camada de segurança e roteamento no `api-gateway`.
-5.  **Fase 5 (Monitorização):** Integração de logs estruturados e métricas de performance.
-
----
-
-### 4. Riscos Técnicos
-
-*   **Latência de Inferência:** O processamento de modelos complexos pode exceder o timeout do gateway. *Mitigação:* Implementar filas de mensagens (RabbitMQ/Redis) para processamento assíncrono.
-*   **Drift de Dados:** A qualidade dos dados de futebol varia. *Mitigação:* Implementar validação de schema rigorosa no pipeline de ingestão.
-*   **Escalabilidade do Estado:** O estado da IA autónoma pode tornar-se um gargalo. *Mitigação:* Utilizar armazenamento distribuído (Redis) para cache de contexto curto.
+| Módulo | Responsabilidade Técnica | Stack Principal |
+| :--- | :--- | :--- |
+| **Segurança** | Gestão de tokens, RBAC e logs de auditoria | Node.js / NestJS |
+| **Clínico** | Máquinas de estado e prontuário eletrónico | Node.js / Fastify |
+| **Logístico** | Gestão de stock e workflows de aprovação | Node.js / NestJS |
+| **Governação** | Dashboards (BI) e relatórios de conformidade | Python / Pandas / Superset |
 
 ---
 
-### 5. Padrões de Qualidade
-*   **Código:** Seguir *Clean Code* e *SOLID*.
-*   **Testes:** Cobertura mínima de 80% (PyTest para Python, Jest para Node.js).
-*   **Excepções:** Tratamento global de erros com códigos de estado HTTP padronizados e registo de stack trace em ambiente de desenvolvimento.
+### 4. Riscos Técnicos e Mitigação
+
+1. **Integridade de Dados (Transacional):**
+   * *Risco:* Inconsistência entre stock de farmácia e prescrição médica.
+   * *Mitigação:* Utilização de **Transactional Outbox Pattern** para garantir que a baixa de stock ocorra apenas se a prescrição for confirmada.
+
+2. **Performance em Consultas Pesadas:**
+   * *Risco:* Relatórios de BI degradando a performance do sistema transacional.
+   * *Mitigação:* Implementação de **Read Replicas** no PostgreSQL e uso de Data Marts para consultas analíticas.
+
+3. **Indisponibilidade Crítica:**
+   * *Risco:* Falha no sistema durante atendimento de urgência.
+   * *Mitigação:* Arquitetura Stateless, Load Balancer (Nginx) e monitoramento proativo (Prometheus/Grafana) com alertas de latência.
+
+4. **Conformidade Legal (Auditoria):**
+   * *Risco:* Alteração indevida de registos clínicos.
+   * *Mitigação:* Tabelas de auditoria com `append-only` e assinatura digital (hash) de documentos clínicos (prontuários/receitas).
+
+---
+
+### 5. Checklist de Verificação (Definition of Done)
+* [ ] O log de auditoria regista o `ID_Utilizador` e `IP` para qualquer alteração de dados sensíveis?
+* [ ] A segregação de funções (SoD) impede que o requisitante aprove a própria compra?
+* [ ] O sistema permite o modo "Break-the-Glass" com notificação automática à Auditoria?
+* [ ] As máquinas de estado bloqueiam transições inválidas (ex: alta sem prescrição)?
+* [ ] Existe separação entre a base transacional e a base analítica?
 
 ---
 
@@ -179,51 +274,58 @@ Como Programador Full-Stack Sénior, apresento o plano de implementação para o
 
 _Modelo: gemini-3.1-flash-lite_
 
-Como Agente de Garantia de Qualidade (QA) para o projeto **FutPremier - Fábrica de IA Autónoma**, apresento o plano de testes estruturado para assegurar a robustez e a conformidade do sistema.
+Como responsável pela Garantia de Qualidade (QA) deste sistema, apresento o plano de testes estruturado para garantir a integridade, conformidade e segurança do Sistema de Gestão Hospitalar (HIS).
 
 ---
 
-### 1. Plano de Testes Unitários
-Focados na lógica isolada dos módulos de IA e processamento de dados.
+### 1. Plano de Testes Unitários (Backend - Spring Boot / Node.js)
+*Foco: Validação da lógica de negócio isolada e máquinas de estado.*
 
-*   **Comandos Concretos:**
-    *   `pytest tests/unit/test_agent_logic.py`: Validar a tomada de decisão da IA.
-    *   `pytest tests/unit/test_data_parser.py`: Validar a normalização de inputs de dados de futebol.
-*   **Critérios de Conclusão:**
-    *   Cobertura de código mínima de 85%.
-    *   Zero falhas em testes de lógica de decisão (ex: predição de resultados).
+*   **Comandos de Execução:**
+    *   `mvn test` (Java) ou `npm run test` (Node.js).
+*   **Critérios de Cobertura:** Mínimo de 80% de cobertura de código (Line/Branch Coverage).
+*   **Escopo:**
+    *   **Máquinas de Estado:** Validar transições (ex: `AGUARDANDO_TRIAGEM` -> `EM_ATENDIMENTO`). Testar estados inválidos (ex: transição direta de `ADMITIDO` para `ALTA_MEDICA` deve lançar exceção).
+    *   **Regras de RBAC:** Validar que métodos protegidos por `@PreAuthorize` ou guards bloqueiam acessos não autorizados.
+    *   **Cálculos:** Validar lógica de aprazamento de medicamentos e priorização de triagem (Manchester).
 
 ### 2. Plano de Testes de Integração
-Focados na comunicação entre os módulos da Fábrica de IA e APIs externas.
+*Foco: Comunicação entre módulos, persistência e mensageria.*
 
-*   **Comandos Concretos:**
-    *   `pytest tests/integration/test_api_flow.py`: Verificar a persistência de dados entre a IA e a base de dados.
-    *   `pytest tests/integration/test_external_provider.py`: Validar a integridade da resposta das APIs de estatísticas desportivas.
-*   **Critérios de Conclusão:**
-    *   Sucesso na troca de mensagens entre o orquestrador e os agentes.
-    *   Tratamento de erros (timeouts/404) implementado e funcional.
+*   **Comandos de Execução:**
+    *   `docker-compose up -d test-db rabbitmq` seguido de `mvn verify -Pintegration-tests`.
+*   **Escopo:**
+    *   **Persistência (PostgreSQL):** Testar transações ACID em alocação de leitos (evitar *race conditions* onde dois pacientes ocupam o mesmo leito simultaneamente).
+    *   **Mensageria (RabbitMQ):** Validar o padrão *Outbox*. Verificar se um evento `AltaMedicaRegistada` dispara corretamente a mensagem para o serviço de `HigienizacaoLeito`.
+    *   **Auditoria:** Verificar se cada operação de escrita gera um registo na tabela de `AuditTrail` com os dados corretos (`user_id`, `timestamp`, `old_value`, `new_value`).
 
-### 3. Plano de Testes de Aceitação (UAT)
-Validação baseada nos critérios do Scrum Master para o FutPremier.
+### 3. Plano de Testes de Aceitação (Scrum Master)
+*Foco: Validação dos fluxos de negócio conforme os critérios de aceitação.*
 
-*   **Comandos Concretos:**
-    *   `python scripts/run_acceptance_suite.py --scenario full_cycle`: Executar o fluxo completo de uma análise de jogo.
-*   **Critérios de Conclusão:**
-    *   A IA deve gerar um relatório de predição formatado conforme o template definido.
-    *   O tempo de resposta do sistema deve ser inferior a 5 segundos por análise.
-    *   Os resultados devem ser auditáveis através dos logs de execução.
+*   **Critérios de Conclusão (Definition of Done):**
+    1.  **Fluxo de Urgência:** O sistema deve permitir a abertura de ficha de "Paciente Desconhecido" e a triagem deve definir a prioridade na fila médica.
+    2.  **Segregação de Funções (SoD):** O utilizador que solicita a compra não pode ser o mesmo que aprova o empenho financeiro.
+    3.  **Break-the-Glass:** O acesso a prontuário restrito deve disparar um log de auditoria de nível crítico e notificar a Auditoria Interna.
+    4.  **Bloqueio de Fluxo:** O sistema deve impedir a alta administrativa se o estado do episódio não for `ALTA_MEDICA_DADA`.
+
+---
+
+### 4. Checklist de Reporte de Bugs
+Antes de qualquer envio para produção, o bug deve ser reportado com os seguintes campos obrigatórios:
+
+1.  **ID do Caso de Teste:** Referência ao requisito funcional.
+2.  **Passos para Reproduzir:** Sequência exata de ações (UI/API).
+3.  **Resultado Esperado:** Baseado na especificação funcional.
+4.  **Resultado Obtido:** Com *logs* ou *screenshots*.
+5.  **Severidade:** (Crítica: Bloqueia atendimento / Alta: Funcionalidade essencial / Média: Funcionalidade secundária / Baixa: Estética).
 
 ---
 
-### Procedimento de Reporte de Bugs
-Qualquer falha detetada durante a execução dos comandos acima deve ser registada seguindo o formato:
-1.  **ID do Bug:** [Data]-[Módulo]-[Breve Descrição]
-2.  **Passos para Reproduzir:** (Comandos exatos utilizados)
-3.  **Resultado Esperado:** (O que deveria ter ocorrido)
-4.  **Resultado Obtido:** (O erro retornado)
-5.  **Severidade:** (Crítica/Alta/Média/Baixa)
-
----
-*Nota: Este plano está pronto para ser aplicado no ambiente de desenvolvimento. Aguardo a disponibilização do repositório para iniciar a execução dos testes.*
+### 5. Critérios de Aceitação (QA Gatekeeper)
+O sistema só será considerado apto para *deploy* se:
+*   [ ] Todos os testes unitários e de integração passarem (Build verde).
+*   [ ] A análise estática de código (SonarQube) não apresentar vulnerabilidades de segurança (OWASP Top 10).
+*   [ ] Os fluxos críticos (Admissão, Prescrição, Alta, Requisição de Stock) forem validados manualmente pelo QA em ambiente de *staging*.
+*   [ ] A trilha de auditoria estiver ativa e registando corretamente todas as transações financeiras e clínicas.
 
 ---
