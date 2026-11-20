@@ -1,58 +1,49 @@
 # Fabrica de IA Autonoma - Relatorio Final
 
-**Ideia:** Validação final da fábrica
+**Ideia:** FutPremier - Execucao autonoma 24h
 
 ## scrum_master
 
 _Modelo: gemini-3.1-flash-lite_
 
-Como **Scrum Master**, procedo à estruturação do backlog para a **Versão 0.1** da Fábrica, focando na validação da infraestrutura e dos fluxos de trabalho.
+Como **Scrum Master**, apresento o planeamento da **Versão 0.1** para o **FutPremier**, focado na infraestrutura base para a execução autónoma 24h.
 
 ---
 
-### Backlog Versão 0.1: Validação da Fábrica
+### Sprint 1: Fundação e Conectividade (Duração: 1 semana)
 
-| ID | História de Utilizador | Prioridade | Sprint |
+| ID | História de Utilizador | Prioridade | Critérios de Aceitação |
 | :--- | :--- | :--- | :--- |
-| US01 | Como sistema, quero validar a conectividade entre agentes. | Alta | 1 |
-| US02 | Como utilizador, quero definir um fluxo de trabalho padrão. | Alta | 1 |
-| US03 | Como sistema, quero garantir a persistência de logs de execução. | Média | 2 |
-| US04 | Como utilizador, quero validar a entrega de um output simples. | Média | 2 |
+| **US01** | Configurar ambiente de execução 24/7 | Alta | Servidor configurado com *uptime* monitorizado; sistema de *logging* ativo. |
+| **US02** | Implementar conector de dados (API) | Alta | Leitura bem-sucedida de dados de jogos em tempo real; formato JSON validado. |
+| **US03** | Estruturar base de dados local | Alta | Esquema definido para armazenar jogos, odds e resultados históricos. |
 
 ---
 
-### Detalhe das Histórias e Critérios de Aceitação
+### Sprint 2: Motor de Decisão e Automação (Duração: 1 semana)
 
-#### US01: Conectividade entre Agentes
-*   **Critérios de Aceitação:**
-    *   O agente "Gestor" consegue enviar uma mensagem ao agente "Executor".
-    *   O tempo de resposta entre agentes é inferior a 2 segundos.
-    *   O sistema reporta erro caso um agente esteja indisponível.
-
-#### US02: Definição de Fluxo de Trabalho
-*   **Critérios de Aceitação:**
-    *   O fluxo de trabalho está documentado em formato legível pela máquina (JSON/YAML).
-    *   O fluxo contém, no mínimo, três etapas sequenciais (Entrada -> Processamento -> Saída).
-    *   O sistema valida a sintaxe do fluxo antes da execução.
-
-#### US03: Persistência de Logs
-*   **Critérios de Aceitação:**
-    *   Cada interação entre agentes gera um registo com timestamp.
-    *   Os logs são armazenados num ficheiro ou estrutura de dados acessível.
-    *   É possível filtrar logs por ID de agente ou por ID de tarefa.
-
-#### US04: Validação de Output
-*   **Critérios de Aceitação:**
-    *   O output final corresponde exatamente ao formato esperado na definição da tarefa.
-    *   O sistema emite um sinal de "Sucesso" ou "Falha" após a conclusão.
-    *   O resultado é legível e não contém caracteres corrompidos.
+| ID | História de Utilizador | Prioridade | Critérios de Aceitação |
+| :--- | :--- | :--- | :--- |
+| **US04** | Desenvolver algoritmo de análise | Média | O sistema identifica oportunidades baseadas em odds pré-definidas. |
+| **US05** | Implementar motor de execução (Bot) | Média | O sistema é capaz de simular/executar uma ação de "aposta" sem erro de runtime. |
+| **US06** | Sistema de alertas e notificações | Baixa | Envio de notificação (ex: Telegram/Log) sempre que uma ação é executada. |
 
 ---
 
-### Notas de Planeamento
-*   **Sprint 1:** Foco na infraestrutura base (comunicação e definição).
-*   **Sprint 2:** Foco na observabilidade (logs) e na verificação da entrega final (output).
-*   **Comunicação:** Qualquer bloqueio na comunicação entre agentes deve ser reportado imediatamente no canal de sincronização da equipa.
+### Definição de Pronto (DoD)
+Para que qualquer tarefa seja considerada concluída:
+1. **Código:** Revisado e sem erros críticos de sintaxe.
+2. **Testes:** Teste unitário simples validando a entrada e saída de dados.
+3. **Documentação:** Comentários no código explicando a lógica da função.
+4. **Verificação:** O output da tarefa corresponde exatamente ao critério de aceitação definido.
+
+---
+
+### Notas de Gestão
+* **Comunicação:** Qualquer bloqueio no acesso às APIs de dados deve ser reportado imediatamente para ajuste do *backlog*.
+* **Atomicidade:** As tarefas foram desenhadas para serem independentes, permitindo que a equipa de desenvolvimento trabalhe em paralelo na infraestrutura (Sprint 1) e na lógica (Sprint 2).
+
+**Próximo passo:** Aguardo a validação desta estrutura para iniciar a atribuição das tarefas técnicas aos agentes responsáveis pela implementação.
 
 ---
 
@@ -60,51 +51,51 @@ Como **Scrum Master**, procedo à estruturação do backlog para a **Versão 0.1
 
 _Modelo: gemini-3.1-flash-lite_
 
-Como Arquiteto de Software, apresento a proposta de arquitetura para a "Validação final da fábrica". O foco é a simplicidade operacional, escalabilidade e a separação clara de responsabilidades.
+Como Arquiteto de Software, apresento a proposta de arquitetura para o **FutPremier**, focada em autonomia 24h, escalabilidade e separação de preocupações.
 
 ### 1. Stack Tecnológica
-Para garantir agilidade e performance, a stack será:
-*   **Frontend:** Next.js (React) com TypeScript.
-*   **Backend:** Next.js API Routes (Serverless functions).
-*   **Base de Dados Relacional:** Supabase (PostgreSQL) para gestão de entidades, utilizadores e estados da validação.
-*   **Base de Dados NoSQL:** MongoDB Atlas para armazenamento de logs de auditoria e telemetria da fábrica.
-*   **Infraestrutura:** Vercel (Hosting e CI/CD).
+*   **Linguagem:** TypeScript (Node.js) para consistência e tipagem.
+*   **Runtime:** Docker (Containerização para execução em VPS ou Cloud Run).
+*   **Banco de Dados Relacional:** Supabase (PostgreSQL) para gestão de utilizadores, carteiras e estados de apostas.
+*   **Banco de Dados NoSQL:** MongoDB Atlas para logs de execução, histórico de odds e telemetria de bots.
+*   **Orquestração:** BullMQ (Redis) para gestão de filas e tarefas agendadas (cron jobs).
 
 ---
 
-### 2. Arquitetura em Camadas (Clean Architecture)
+### 2. Arquitetura em Camadas
 
-A estrutura será dividida para garantir que a lógica de negócio seja independente de frameworks ou bases de dados.
+A estrutura segue o padrão de **Clean Architecture**, garantindo que a lógica de negócio seja independente de frameworks externos.
 
-#### Camada de Apresentação (Interface)
-*   **Componentes UI:** Interface de validação, dashboards de métricas e painéis de controlo.
-*   **Comunicação:** Chamadas via SWR ou React Query para otimização de cache e estado.
+#### A. Camada de Domínio (Core)
+*   **Responsabilidade:** Entidades, regras de negócio e interfaces.
+*   **Componentes:** Modelos de aposta, lógica de análise de odds, estados do bot.
+*   **Isolamento:** Não possui dependências externas.
 
-#### Camada de Aplicação (Serviços)
-*   **Casos de Uso:** Orquestração da lógica de validação (ex: `validarEtapaProducao`, `gerarRelatorioFinal`).
-*   **DTOs:** Objetos de transferência de dados para garantir a integridade da comunicação entre camadas.
+#### B. Camada de Aplicação (Use Cases)
+*   **Responsabilidade:** Orquestração dos fluxos de trabalho.
+*   **Componentes:** Serviços de execução, gestão de filas, processadores de eventos.
+*   **Integração:** Coordena a comunicação entre o domínio e os adaptadores.
 
-#### Camada de Domínio (Entidades)
-*   **Regras de Negócio:** Definição das entidades `Produto`, `Lote`, `Operador` e `StatusValidacao`. Sem dependências externas.
-
-#### Camada de Infraestrutura (Adapters)
-*   **Repositórios Supabase:** Implementação da persistência relacional (PostgreSQL).
-*   **Repositórios MongoDB:** Implementação do registo de logs e eventos de fábrica.
-*   **Gateways:** Integração com serviços externos (ex: sensores IoT, APIs de terceiros).
+#### C. Camada de Infraestrutura (Adaptadores)
+*   **Responsabilidade:** Implementação técnica.
+*   **Componentes:**
+    *   **Supabase Client:** Persistência de dados transacionais.
+    *   **MongoDB Driver:** Armazenamento de logs de alta frequência.
+    *   **HTTP Clients:** Conexão com APIs de casas de apostas.
+    *   **Queue Manager:** Gestão de tarefas 24h via Redis.
 
 ---
 
 ### 3. Limites e Fluxo de Dados
 
-1.  **Isolamento:** A camada de domínio não conhece a existência do Supabase ou MongoDB. A comunicação é feita através de interfaces (Dependency Inversion).
-2.  **Segurança:** O acesso aos dados é controlado via *Row Level Security* (RLS) no Supabase e *Network Access Lists* no MongoDB Atlas.
-3.  **Fluxo de Validação:**
-    *   O utilizador submete a validação via Frontend.
-    *   O serviço de aplicação processa a lógica no domínio.
-    *   Dados estruturados (estado) são persistidos no **Supabase**.
-    *   Eventos de auditoria (quem, quando, o quê) são enviados de forma assíncrona para o **MongoDB**.
+1.  **Ingestão:** O bot consome dados de APIs externas e armazena logs brutos no **MongoDB**.
+2.  **Processamento:** A lógica de decisão (Domain) avalia as odds. Se uma aposta é validada, o estado é persistido no **Supabase** (transação financeira/status).
+3.  **Execução:** O **BullMQ** garante que o ciclo de vida do bot seja contínuo, processando tarefas em background sem bloquear a thread principal.
+4.  **Segurança:** A comunicação com o Supabase utiliza *Row Level Security* (RLS) e chaves de API restritas, enquanto o MongoDB isola os logs de auditoria dos dados críticos de utilizador.
 
-Esta estrutura permite que a fábrica escale a complexidade da validação sem comprometer a performance do sistema principal.
+### 4. Verificação de Escalabilidade
+*   **Modularidade:** A separação entre o processamento de dados (NoSQL) e a gestão de estado (SQL) permite que o sistema escale a leitura de logs sem degradar a performance das transações financeiras.
+*   **Autonomia:** O uso de filas (Redis) permite que o sistema retome tarefas automaticamente após falhas, garantindo a execução 24h exigida.
 
 ---
 
@@ -112,55 +103,68 @@ Esta estrutura permite que a fábrica escale a complexidade da validação sem c
 
 _Modelo: gemini-3.1-flash-lite_
 
-Com base na minha missão de Programador Full-Stack Sénior, apresento o plano de implementação para a **Validação Final da Fábrica**.
+Como Programador Full-Stack Sénior, apresento o plano de implementação para o **FutPremier**, estruturado para garantir escalabilidade, resiliência e execução autónoma 24/7.
 
 ---
 
 ### 1. Arquitetura do Sistema
-O projeto será estruturado seguindo o padrão **Clean Architecture**, separando a lógica de negócio da infraestrutura.
-
-*   **Backend (FastAPI - Python):** Gestão de regras de negócio, processamento de dados (Pandas) e validação de integridade.
-*   **API Gateway/Serviço (Fastify - Node.js):** Orquestração de pedidos, autenticação e comunicação assíncrona.
-*   **Camada de Dados:** Validação de esquemas via Pydantic (Python) e Joi (Node.js).
+O sistema será dividido em três pilares:
+*   **Core (Python/FastAPI):** Lógica de análise de dados, integração com APIs de apostas e modelos preditivos (Pandas).
+*   **Gateway (Node.js/Fastify):** Gestão de estado, WebSockets para eventos em tempo real e interface de controlo.
+*   **Infraestrutura:** Redis (fila de tarefas), PostgreSQL (logs/histórico) e Docker (orquestração).
 
 ---
 
 ### 2. Plano de Implementação (Fases)
 
-#### Fase 1: Estruturação e Setup
-*   **Ficheiros:** `pyproject.toml` (Python), `package.json` (Node.js), `.env.example`.
-*   **Responsabilidade:** Configuração de ambientes, variáveis de ambiente e ferramentas de *linting* (Flake8/ESLint).
+#### Fase 1: Fundação e Conectividade
+*   **`src/core/client.py`**: Cliente assíncrono para interagir com a API de dados desportivos.
+*   **`src/core/processor.py`**: Módulo de limpeza e normalização de dados (Pandas).
+*   **`src/gateway/server.js`**: Servidor Fastify para monitorização de saúde do sistema.
 
-#### Fase 2: Núcleo de Validação (Python)
-*   **Ficheiros:** `app/services/validator.py`, `app/models/schemas.py`.
-*   **Responsabilidade:** Implementar algoritmos de validação de dados da fábrica usando Pandas para performance e Pydantic para tipagem estrita.
+#### Fase 2: Motor de Decisão e Automação
+*   **`src/core/engine.py`**: Algoritmo de decisão baseado em thresholds definidos.
+*   **`src/core/scheduler.py`**: Gestor de tarefas agendadas (APScheduler) para garantir execução 24/7.
+*   **`src/gateway/socket.js`**: Emissor de eventos para dashboard de controlo.
 
-#### Fase 3: Orquestração (Node.js)
-*   **Ficheiros:** `src/routes/factory.routes.js`, `src/controllers/validation.controller.js`.
-*   **Responsabilidade:** Expor endpoints REST, gerir o fluxo de pedidos e tratar respostas de erro de forma centralizada.
-
-#### Fase 4: Testes e Integração
-*   **Ficheiros:** `tests/unit/`, `tests/integration/`.
-*   **Responsabilidade:** Cobertura de testes unitários para funções críticas e testes de integração entre os serviços.
+#### Fase 3: Persistência e Segurança
+*   **`src/db/models.py`**: Definição de schemas (SQLAlchemy) para auditoria de operações.
+*   **`src/utils/logger.py`**: Sistema de logs estruturados com alertas de falha (integração com Telegram/Slack).
 
 ---
 
-### 3. Riscos Técnicos
+### 3. Responsabilidades por Módulo
 
-| Risco | Impacto | Mitigação |
+| Módulo | Tecnologia | Responsabilidade |
 | :--- | :--- | :--- |
-| **Latência no Processamento** | Elevado | Utilizar *async/await* no Node.js e processamento vetorizado (Pandas) no Python. |
-| **Inconsistência de Dados** | Crítico | Implementar validação de esquemas em ambas as pontas (Pydantic/Joi). |
-| **Falha de Integração** | Médio | Utilizar contratos de API (OpenAPI/Swagger) para documentação e validação de interface. |
+| **Ingestão** | Python | Captura de dados, normalização e validação. |
+| **Análise** | Python | Cálculo de probabilidades e execução de modelos. |
+| **Orquestração** | Node.js | Gestão de conexões, WebSockets e API de controlo. |
+| **Persistência** | PostgreSQL | Armazenamento de histórico e logs de execução. |
 
 ---
 
-### 4. Critérios de Verificação
-1.  **Modularidade:** Cada módulo deve ser independente e testável isoladamente.
-2.  **Tratamento de Erros:** Todas as exceções devem ser capturadas e logadas com códigos de erro HTTP apropriados.
-3.  **Performance:** O tempo de resposta da validação deve ser inferior a 200ms para payloads padrão.
+### 4. Riscos Técnicos e Mitigação
 
-Estou pronto para iniciar a implementação de qualquer um destes módulos conforme a prioridade definida.
+1.  **Latência de API:**
+    *   *Risco:* Atrasos na resposta da API de dados podem invalidar a aposta.
+    *   *Mitigação:* Implementação de *circuit breakers* e cache local (Redis) para dados estáticos.
+2.  **Falhas de Conexão (24/7):**
+    *   *Risco:* Perda de conectividade interrompe o ciclo de execução.
+    *   *Mitigação:* Implementação de *watchdog* no Node.js que reinicia o processo Python em caso de *hang*.
+3.  **Inconsistência de Dados:**
+    *   *Risco:* Dados corrompidos levam a decisões erradas.
+    *   *Mitigação:* Validação estrita de schemas (Pydantic) em todas as entradas de dados.
+4.  **Limites de Taxa (Rate Limiting):**
+    *   *Risco:* Bloqueio por excesso de requisições.
+    *   *Mitigação:* Implementação de *token bucket algorithm* para controlar o fluxo de saída.
+
+---
+
+### 5. Próximos Passos (Verificáveis)
+1.  Configurar o ambiente Docker com `docker-compose.yml`.
+2.  Estabelecer a conexão autenticada com a API de dados.
+3.  Validar o fluxo de dados entre o `processor.py` e o `engine.py` com testes unitários (`pytest`).
 
 ---
 
@@ -168,45 +172,53 @@ Estou pronto para iniciar a implementação de qualquer um destes módulos confo
 
 _Modelo: gemini-3.1-flash-lite_
 
-Como Agente de Garantia de Qualidade (QA), apresento o plano de validação final para a fábrica, estruturado para garantir a conformidade com os critérios de aceitação.
-
-### 1. Testes Unitários (Nível de Componente)
-Focados na validação isolada de cada módulo da fábrica (ex: sensores, atuadores, lógica de controlo).
-
-*   **Comando de Execução:** `npm run test:unit` ou `pytest --unit` (conforme stack).
-*   **Critérios de Conclusão:**
-    *   Cobertura de código mínima de 85%.
-    *   Zero falhas em funções de cálculo de produção e leitura de sensores.
-    *   Tempo de resposta por unidade inferior a 50ms.
-
-### 2. Testes de Integração (Nível de Sistema)
-Validação da comunicação entre os diferentes módulos da fábrica e a interface de gestão.
-
-*   **Comando de Execução:** `npm run test:integration` ou `docker-compose -f docker-compose.test.yml up --abort-on-container-exit`.
-*   **Critérios de Conclusão:**
-    *   Sucesso na troca de dados entre o PLC (Controlador Lógico Programável) e o Dashboard.
-    *   Validação do fluxo completo: "Input de matéria-prima" -> "Processamento" -> "Output de produto final".
-    *   Tratamento de erros: O sistema deve reportar falhas de comunicação em menos de 2 segundos.
-
-### 3. Testes de Aceitação (Critérios do Scrum Master)
-Validação final baseada nos requisitos de negócio e experiência do utilizador.
-
-*   **Comando de Execução:** `npx cypress run --spec "cypress/e2e/acceptance/*.cy.js"` ou execução manual via checklist de User Stories.
-*   **Critérios de Conclusão:**
-    *   **Funcionalidade:** O utilizador consegue iniciar, pausar e parar a linha de produção sem erros.
-    *   **Segurança:** O botão de paragem de emergência (E-Stop) interrompe o fluxo em < 100ms.
-    *   **Relatórios:** O sistema gera um relatório de produção diário com dados precisos e sem corrupção de ficheiros.
-
-### 4. Protocolo de Reporte de Bugs
-Antes da passagem para produção, qualquer falha detetada deve seguir este formato:
-
-1.  **ID do Bug:** [Ex: BUG-001]
-2.  **Severidade:** (Crítica/Alta/Média/Baixa)
-3.  **Passos para Reproduzir:** (Lista numerada)
-4.  **Resultado Esperado:** (Descrição técnica)
-5.  **Resultado Obtido:** (Evidência/Log)
+Como agente de Garantia de Qualidade (QA) para o projeto **FutPremier**, apresento o plano de testes estruturado para assegurar a fiabilidade da execução autónoma 24h.
 
 ---
-*Nota: Este plano está pronto para ser aplicado. Aguardo o output dos testes para proceder à validação final de conformidade.*
+
+### 1. Plano de Testes Unitários
+Focados na lógica isolada dos módulos de decisão e comunicação.
+
+*   **Comandos de Teste:**
+    *   `npm test -- --coverage` (ou equivalente no stack do projeto).
+*   **Critérios de Conclusão:**
+    *   Cobertura de código mínima de 80%.
+    *   Zero falhas em funções de cálculo de odds e análise de mercado.
+    *   Validação de mocks para APIs externas (ex: fornecedores de dados de futebol).
+
+### 2. Plano de Testes de Integração
+Focados na comunicação entre os módulos de análise, execução de ordens e gestão de banca.
+
+*   **Comandos de Teste:**
+    *   `npm run test:integration` (simulação de fluxo completo).
+*   **Critérios de Conclusão:**
+    *   Sucesso na persistência de dados entre o módulo de análise e o módulo de execução.
+    *   Tratamento correto de erros de latência de rede.
+    *   Verificação de que a banca nunca é excedida (limites de segurança).
+
+### 3. Plano de Testes de Aceitação (UAT)
+Validação dos critérios definidos pelo Scrum Master para o funcionamento autónomo.
+
+*   **Comandos de Teste:**
+    *   `npm run test:acceptance -- --env=staging`
+*   **Critérios de Conclusão:**
+    *   **Autonomia:** O sistema deve operar 24h sem intervenção manual (verificar logs de uptime).
+    *   **Precisão:** As ordens executadas devem corresponder exatamente aos critérios de entrada definidos na estratégia.
+    *   **Fail-safe:** O sistema deve entrar em modo "pausa" se a API de dados falhar ou se a banca atingir o *stop-loss* configurado.
+
+---
+
+### 4. Protocolo de Reporte de Bugs
+Qualquer falha detetada durante a execução dos testes acima deve ser reportada seguindo o formato:
+
+1.  **ID do Bug:** [Breve descrição]
+2.  **Severidade:** (Crítica/Alta/Média/Baixa)
+3.  **Passos para Reproduzir:** (Comandos exatos)
+4.  **Resultado Esperado:**
+5.  **Resultado Obtido:**
+
+---
+
+**Nota de QA:** Este plano deve ser executado em ambiente de *staging* antes de qualquer *merge* para a *branch* de produção. Aguardo a disponibilização do ambiente para iniciar a execução dos testes.
 
 ---
