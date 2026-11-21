@@ -28,6 +28,7 @@ def autenticar(conexao, username: str, senha: str) -> dict | None:
         "username": linha["username"],
         "nome": linha["nome"],
         "perfil": linha["perfil"],
+        "unidade_codigo": linha["unidade_codigo"],
     }
 
 
@@ -50,6 +51,10 @@ async def usuario_atual(request: Request, authorization: str | None = Header(def
         "username": linha["username"],
         "nome": linha["nome"],
         "perfil": linha["perfil"],
+        "unidade_codigo": linha["unidade_codigo"],
+        "perfil_ativo": linha["perfil"],
+        "correlation_id": getattr(request.state, "correlation_id", ""),
+        "dispositivo": request.headers.get("user-agent", "desconhecido"),
         "token": token,
         "ip": request.client.host if request.client else "desconhecido",
     }
@@ -82,12 +87,17 @@ def registrar_auditoria(
         "anterior_valor": anterior,
         "novo_valor": novo,
         "ip": usuario.get("ip", "desconhecido"),
+        "perfil_ativo": usuario.get("perfil_ativo", usuario.get("perfil")),
+        "unidade_hospitalar": usuario.get("unidade_codigo"),
+        "dispositivo": usuario.get("dispositivo", "desconhecido"),
+        "correlation_id": usuario.get("correlation_id", ""),
         "criado_em": db.agora(),
     }
     digest = hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode("utf-8")).hexdigest()
     conexao.execute(
-        "INSERT INTO audit (user_id, perfil, acao, alvo, anterior, novo, ip, criado_em, hash) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO audit (user_id, perfil, acao, alvo, anterior, novo, ip, criado_em, hash, "
+        "perfil_ativo, unidade_hospitalar, dispositivo, correlation_id) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             payload["user_id"],
             payload["perfil"],
@@ -98,6 +108,10 @@ def registrar_auditoria(
             payload["ip"],
             payload["criado_em"],
             digest,
+            payload["perfil_ativo"],
+            payload["unidade_hospitalar"],
+            payload["dispositivo"],
+            payload["correlation_id"],
         ),
     )
 
@@ -114,3 +128,54 @@ def criar_alerta(conexao, nivel: str, mensagem: str) -> None:
         "INSERT INTO alerts (nivel, mensagem, criado_em) VALUES (?, ?, ?)",
         (nivel, mensagem, db.agora()),
     )
+
+
+def assinar_documento(conexao, usuario: dict, tipo: str, referencia_id: str, conteudo: str) -> dict:
+    criado_em = db.agora()
+    payload = json.dumps(
+        {
+            "tipo": tipo,
+            "referencia_id": referencia_id,
+            "conteudo": conteudo,
+            "utilizador_id": usuario.get("id"),
+            "perfil_ativo": usuario.get("perfil_ativo", usuario.get("perfil")),
+            "criado_em": criado_em,
+        },
+        sort_keys=True,
+        default=str,
+    )
+    hash_documento = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    assinatura = hashlib.sha256(
+        f"{hash_documento}|{usuario.get('id')}|{usuario.get('correlation_id', '')}".encode("utf-8")
+    ).hexdigest()
+    documento_id = f"DOC-{secrets.token_hex(6).upper()}"
+    conexao.execute(
+        "INSERT INTO documentos_assinados (id, tipo_documento, referencia_id, conteudo, hash_documento, "
+        "assinatura, certificado_id, utilizador_id, perfil_ativo, unidade_codigo, ip_origem, "
+        "correlation_id, criado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            documento_id,
+            tipo,
+            referencia_id,
+            conteudo,
+            hash_documento,
+            assinatura,
+            f"CERT-{usuario.get('id')}",
+            usuario.get("id"),
+            usuario.get("perfil_ativo", usuario.get("perfil")),
+            usuario.get("unidade_codigo"),
+            usuario.get("ip", "desconhecido"),
+            usuario.get("correlation_id", ""),
+            criado_em,
+        ),
+    )
+    registrar_auditoria(conexao, usuario, "ASSINAR_DOCUMENTO", f"{tipo}:{referencia_id}", None, {"id": documento_id})
+    return {"id": documento_id, "hash": hash_documento, "assinatura": assinatura, "criado_em": criado_em}
+
+
+def unidade_permitida(usuario: dict, unidade_codigo: str | None) -> bool:
+    if not unidade_codigo:
+        return True
+    if usuario.get("perfil") == "administrador":
+        return True
+    return usuario.get("unidade_codigo") in {unidade_codigo, "DG"}

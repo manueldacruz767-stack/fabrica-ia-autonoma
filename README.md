@@ -65,10 +65,23 @@ Logins de demonstracao:
 | `laboratorio` | `laboratorio123` | Laboratorio |
 | `imagiologia` | `imagiologia123` | Imagiologia |
 | `fisioterapia` | `fisioterapia123` | Reabilitacao |
+| `rececionista` | `rececionista123` | Rececao e Agendamento |
+| `diretor_clinico` | `diretor_clinico123` | Direcao Clinica |
+| `diretor_enfermagem` | `diretor_enfermagem123` | Direcao de Enfermagem |
+| `relacoes_publicas` | `relacoes_publicas123` | Relacoes Publicas |
+| `comissao_etica` | `comissao_etica123` | Comissao de Etica |
+| `direcao_pedagogica` | `direcao_pedagogica123` | Direcao Pedagogica |
+| `engenharia_clinica` | `engenharia_clinica123` | Engenharia Clinica |
+| `nutricionista` | `nutricionista123` | Nutricao e Dietetica |
+| `transportes` | `transportes123` | Transportes e Ambulancias |
+| `seguranca` | `seguranca123` | Seguranca Patrimonial |
+| `ti` | `ti123` | Tecnologias de Informacao |
+| `lavandaria` | `lavandaria123` | Lavandaria |
+| `cozinha` | `cozinha123` | Cozinha |
 
-Fluxo suportado na interface: registar paciente (incluindo desconhecido), abrir episodio, triagem com cor de Manchester, alocar leito, registar atendimento, prescrever, dispensar com segregacao de funcoes, dar alta medica (dispara higienizacao e encerra prescricoes), concluir higienizacao e concluir alta administrativa. O ciclo ambulatorial inclui `AGENDADO -> CHECK_IN_REALIZADO -> PRE_CONSULTA -> EM_CONSULTA -> FINALIZADO`. O internamento regista leito e motivo, e a cirurgia valida checklist, bloqueia equipamentos com manutencao vencida e pode transferir para a UCI. Tambem inclui escalas e pedidos de RH, requisicoes com validacao tecnica, cabimento, parecer juridico, alcaladas (ate 5000 basta a Direcao Administrativa; acima disso exige Direcao Geral), empenho e rececao por terceiro, orcamento/empenhos financeiros, pedidos MDT com resultado e validacao medica, lotes de esterilizacao e chamados de manutencao com SLA. O painel mostra KPIs e a area de auditoria mostra a cadeia de hashes e os eventos de dominio.
+Fluxo suportado na interface: registar paciente (incluindo desconhecido), abrir episodio, triagem com cor de Manchester, alocar leito, registar atendimento, prescrever, dispensar com segregacao de funcoes, dar alta medica (dispara higienizacao e encerra prescricoes), concluir higienizacao e concluir alta administrativa. O ciclo ambulatorial inclui `AGENDADO -> CHECK_IN_REALIZADO -> PRE_CONSULTA -> EM_CONSULTA -> FINALIZADO`. O internamento regista leito e motivo, e a cirurgia valida checklist, bloqueia equipamentos com manutencao vencida e pode transferir para a UCI. Tambem inclui escalas e pedidos de RH, requisicoes com validacao tecnica e cabimento, cotacoes e propostas, contratos assinados digitalmente, folha salarial e ponto, alcaladas (ate 5000 basta a Direcao Administrativa; acima disso exigem parecer favoravel de Juridico e Auditoria Interna antes da Direcao Geral), empenho e rececao por terceiro, orcamento/empenhos financeiros, pedidos MDT com resultado e validacao medica, lotes de esterilizacao, chamados de manutencao com SLA e escalonamento, stock setorial com guias de movimento, evolucao diaria, balanco hidrico, sumario de alta assinado, transferencia com guia e registo de obito. O painel mostra KPIs e a area de auditoria mostra a cadeia de hashes, unidade, perfil ativo, dispositivo, `correlation_id` e os eventos de dominio.
 
-Endpoints principais: `/api/dashboard`, `/api/pacientes`, `/api/episodios`, `/api/fila`, `/api/episodios/{id}/check-in`, `/api/episodios/{id}/pre-consulta`, `/api/episodios/{id}/finalizar`, `/api/leitos`, `/api/stock`, `/api/prescricoes/pendentes`, `/api/cirurgias/*`, `/api/esterilizacoes`, `/api/equipamentos`, `/api/manutencao/chamados`, `/api/rh/*`, `/api/compras/*`, `/api/financeiro/*`, `/api/mdt/*`, `/api/auditoria`, `/api/eventos`. A documentacao interativa da API esta em `/docs`.
+Endpoints principais: `/api/dashboard`, `/api/pacientes`, `/api/episodios`, `/api/fila`, `/api/consultas`, `/api/episodios/{id}/evolucoes`, `/api/episodios/{id}/balanco-hidrico`, `/api/episodios/{id}/sumario-alta`, `/api/episodios/{id}/transferencia`, `/api/episodios/{id}/obito`, `/api/unidades`, `/api/documentos/assinar`, `/api/stock-setorial`, `/api/leitos`, `/api/stock`, `/api/prescricoes/pendentes`, `/api/cirurgias/*`, `/api/esterilizacoes`, `/api/equipamentos`, `/api/manutencao/chamados`, `/api/manutencao/chamados/{id}/escalonar`, `/api/rh/*`, `/api/compras/*`, `/api/financeiro/*`, `/api/mdt/*`, `/api/auditoria`, `/api/eventos`. A documentacao interativa da API esta em `/docs`.
 
 Testes do app:
 

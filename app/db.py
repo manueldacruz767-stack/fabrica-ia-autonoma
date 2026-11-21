@@ -25,6 +25,19 @@ USUARIOS = (
     ("laboratorio", "laboratorio123", "laboratorio", "Tecnico de Laboratorio"),
     ("imagiologia", "imagiologia123", "imagiologia", "Tecnico de Imagiologia"),
     ("fisioterapia", "fisioterapia123", "fisioterapia", "Fisioterapeuta"),
+    ("rececionista", "rececionista123", "rececionista", "Rececionista"),
+    ("diretor_clinico", "diretor_clinico123", "diretor_clinico", "Diretor Clinico"),
+    ("diretor_enfermagem", "diretor_enfermagem123", "diretor_enfermagem", "Diretor de Enfermagem"),
+    ("relacoes_publicas", "relacoes_publicas123", "relacoes_publicas", "Relacoes Publicas"),
+    ("comissao_etica", "comissao_etica123", "comissao_etica", "Comissao de Etica"),
+    ("direcao_pedagogica", "direcao_pedagogica123", "direcao_pedagogica", "Direcao Pedagogica"),
+    ("engenharia_clinica", "engenharia_clinica123", "engenharia_clinica", "Engenharia Clinica"),
+    ("nutricionista", "nutricionista123", "nutricionista", "Nutricao e Dietetica"),
+    ("transportes", "transportes123", "transportes", "Transportes e Ambulancias"),
+    ("seguranca", "seguranca123", "seguranca", "Seguranca Patrimonial"),
+    ("ti", "ti123", "ti", "Tecnologias de Informacao"),
+    ("lavandaria", "lavandaria123", "lavandaria", "Lavandaria"),
+    ("cozinha", "cozinha123", "cozinha", "Cozinha"),
 )
 
 FUNCIONARIOS = (
@@ -42,6 +55,19 @@ FUNCIONARIOS = (
     ("laboratorio", "Tecnico de Laboratorio", "laboratorio", "Laboratorio"),
     ("imagiologia", "Tecnico de Imagiologia", "imagiologia", "Imagiologia"),
     ("fisioterapia", "Fisioterapeuta", "fisioterapia", "Reabilitacao"),
+    ("rececionista", "Rececionista", "rececionista", "Urgencia"),
+    ("diretor_clinico", "Diretor Clinico", "diretor_clinico", "Direcao Clinica"),
+    ("diretor_enfermagem", "Diretor de Enfermagem", "diretor_enfermagem", "Direcao de Enfermagem"),
+    ("relacoes_publicas", "Relacoes Publicas", "relacoes_publicas", "Direcao Geral"),
+    ("comissao_etica", "Comissao de Etica", "comissao_etica", "Etica"),
+    ("direcao_pedagogica", "Direcao Pedagogica", "direcao_pedagogica", "Ensino"),
+    ("engenharia_clinica", "Engenharia Clinica", "engenharia_clinica", "Engenharia"),
+    ("nutricionista", "Nutricionista", "nutricionista", "Cozinha"),
+    ("transportes", "Transportes", "transportes", "Transportes"),
+    ("seguranca", "Seguranca", "seguranca", "Seguranca"),
+    ("ti", "Tecnico TI", "ti", "TI"),
+    ("lavandaria", "Lavandaria", "lavandaria", "Lavandaria"),
+    ("cozinha", "Cozinha", "cozinha", "Cozinha"),
 )
 
 MEDICAMENTOS = (
@@ -65,6 +91,66 @@ LEITOS = (
     ("A-07", "Enfermaria A"),
     ("A-08", "Enfermaria A"),
 )
+
+UNIDADES = (
+    ("DG", "Direcao Geral", 1, None),
+    ("DC", "Direcao Clinica", 2, "DG"),
+    ("DE", "Direcao de Enfermagem", 2, "DG"),
+    ("DA", "Direcao Administrativa e Financeira", 2, "DG"),
+    ("URG", "Urgencia", 3, "DC"),
+    ("UCI", "Cuidados Intensivos", 3, "DC"),
+    ("ENF-A", "Enfermaria A", 3, "DE"),
+    ("FARM", "Farmacia", 3, "DA"),
+    ("LAB", "Laboratorio", 3, "DC"),
+    ("IMG", "Imagiologia", 3, "DC"),
+    ("REAB", "Reabilitacao", 3, "DC"),
+    ("NUT", "Nutricao e Dietetica", 3, "DE"),
+    ("APROV", "Aprovisionamento", 3, "DA"),
+    ("FIN", "Financas", 3, "DA"),
+    ("JUR", "Assessoria Juridica", 3, "DG"),
+    ("AUD", "Auditoria Interna", 3, "DG"),
+    ("ETICA", "Comissao de Etica", 3, "DG"),
+    ("ENSINO", "Direcao Pedagogica", 3, "DG"),
+    ("ENG", "Engenharia Clinica", 3, "DA"),
+    ("LOG", "Logistica", 3, "DA"),
+    ("TRANS", "Transportes", 3, "DA"),
+    ("SEG", "Seguranca", 3, "DA"),
+    ("TI", "Tecnologias de Informacao", 3, "DA"),
+    ("LAV", "Lavandaria", 3, "DA"),
+    ("COZ", "Cozinha", 3, "DA"),
+)
+
+UNIDADE_POR_PERFIL = {
+    "administrador": "DG",
+    "medico": "URG",
+    "enfermeiro": "URG",
+    "chefe": "URG",
+    "rececionista": "URG",
+    "farmacia": "FARM",
+    "limpeza": "LOG",
+    "gestor": "URG",
+    "rh": "DG",
+    "compras": "APROV",
+    "financeiro": "FIN",
+    "juridico": "JUR",
+    "auditoria": "AUD",
+    "logistica": "LOG",
+    "laboratorio": "LAB",
+    "imagiologia": "IMG",
+    "fisioterapia": "REAB",
+    "diretor_clinico": "DC",
+    "diretor_enfermagem": "DE",
+    "relacoes_publicas": "DG",
+    "comissao_etica": "ETICA",
+    "direcao_pedagogica": "ENSINO",
+    "engenharia_clinica": "ENG",
+    "nutricionista": "NUT",
+    "transportes": "TRANS",
+    "seguranca": "SEG",
+    "ti": "TI",
+    "lavandaria": "LAV",
+    "cozinha": "COZ",
+}
 
 
 def agora() -> str:
@@ -360,8 +446,203 @@ def inicializar() -> None:
                 criado_em TEXT NOT NULL,
                 concluido_em TEXT
             );
+
+            CREATE TABLE IF NOT EXISTS unidades_organizacionais (
+                codigo TEXT PRIMARY KEY,
+                nome TEXT NOT NULL,
+                nivel INTEGER NOT NULL,
+                unidade_pai_codigo TEXT REFERENCES unidades_organizacionais(codigo),
+                ativo INTEGER NOT NULL DEFAULT 1
+            );
+
+            CREATE TABLE IF NOT EXISTS pareceres (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                purchase_id TEXT NOT NULL REFERENCES purchase_requests(id),
+                tipo TEXT NOT NULL,
+                parecer TEXT NOT NULL,
+                aprovado INTEGER NOT NULL,
+                autor_id TEXT NOT NULL REFERENCES users(id),
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS documentos_assinados (
+                id TEXT PRIMARY KEY,
+                tipo_documento TEXT NOT NULL,
+                referencia_id TEXT NOT NULL,
+                conteudo TEXT NOT NULL,
+                hash_documento TEXT NOT NULL,
+                assinatura TEXT NOT NULL,
+                certificado_id TEXT NOT NULL,
+                utilizador_id TEXT NOT NULL REFERENCES users(id),
+                perfil_ativo TEXT NOT NULL,
+                unidade_codigo TEXT,
+                ip_origem TEXT NOT NULL,
+                correlation_id TEXT NOT NULL,
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS sumarios_alta (
+                id TEXT PRIMARY KEY,
+                episode_id TEXT NOT NULL REFERENCES episodes(id),
+                diagnostico TEXT NOT NULL,
+                evolucao TEXT NOT NULL,
+                orientacoes TEXT NOT NULL,
+                medicamentos TEXT NOT NULL,
+                medico_id TEXT NOT NULL REFERENCES users(id),
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS evolucoes (
+                id TEXT PRIMARY KEY,
+                episode_id TEXT NOT NULL REFERENCES episodes(id),
+                nota TEXT NOT NULL,
+                conduta TEXT NOT NULL,
+                proxima_avaliacao TEXT NOT NULL,
+                autor_id TEXT NOT NULL REFERENCES users(id),
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS balancos_hidricos (
+                id TEXT PRIMARY KEY,
+                episode_id TEXT NOT NULL REFERENCES episodes(id),
+                entradas_ml INTEGER NOT NULL,
+                saidas_ml INTEGER NOT NULL,
+                dieta TEXT NOT NULL,
+                turno TEXT NOT NULL,
+                autor_id TEXT NOT NULL REFERENCES users(id),
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS guias_transferencia (
+                id TEXT PRIMARY KEY,
+                episode_id TEXT NOT NULL REFERENCES episodes(id),
+                destino TEXT NOT NULL,
+                motivo TEXT NOT NULL,
+                veiculo TEXT NOT NULL,
+                acompanhante_id TEXT,
+                estado TEXT NOT NULL,
+                criado_por TEXT NOT NULL,
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS obitos (
+                id TEXT PRIMARY KEY,
+                episode_id TEXT NOT NULL REFERENCES episodes(id),
+                causa TEXT NOT NULL,
+                data_obito TEXT NOT NULL,
+                medico_id TEXT NOT NULL REFERENCES users(id),
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS consultas_agendadas (
+                id TEXT PRIMARY KEY,
+                patient_id TEXT NOT NULL REFERENCES patients(id),
+                especialidade TEXT NOT NULL,
+                medico_id TEXT REFERENCES users(id),
+                data_hora TEXT NOT NULL,
+                estado TEXT NOT NULL,
+                retorno_de_id TEXT REFERENCES consultas_agendadas(id),
+                criado_por TEXT NOT NULL,
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS stock_setorial (
+                id TEXT PRIMARY KEY,
+                unidade_codigo TEXT NOT NULL REFERENCES unidades_organizacionais(codigo),
+                item TEXT NOT NULL,
+                quantidade INTEGER NOT NULL,
+                minimo INTEGER NOT NULL DEFAULT 0
+            );
+
+            CREATE TABLE IF NOT EXISTS movimentacoes_stock (
+                id TEXT PRIMARY KEY,
+                stock_setorial_id TEXT NOT NULL REFERENCES stock_setorial(id),
+                tipo TEXT NOT NULL,
+                quantidade INTEGER NOT NULL,
+                origem TEXT,
+                destino TEXT,
+                responsavel_id TEXT NOT NULL REFERENCES users(id),
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS contratos (
+                id TEXT PRIMARY KEY,
+                fornecedor TEXT NOT NULL,
+                objeto TEXT NOT NULL,
+                valor REAL NOT NULL,
+                inicio TEXT NOT NULL,
+                fim TEXT NOT NULL,
+                estado TEXT NOT NULL,
+                criado_por TEXT NOT NULL,
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS cotacoes (
+                id TEXT PRIMARY KEY,
+                descricao TEXT NOT NULL,
+                quantidade INTEGER NOT NULL,
+                estimativa REAL NOT NULL,
+                estado TEXT NOT NULL,
+                criado_por TEXT NOT NULL,
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS propostas_fornecedores (
+                id TEXT PRIMARY KEY,
+                cotacao_id TEXT NOT NULL REFERENCES cotacoes(id),
+                fornecedor TEXT NOT NULL,
+                valor REAL NOT NULL,
+                prazo TEXT NOT NULL,
+                selecionada INTEGER NOT NULL DEFAULT 0
+            );
+
+            CREATE TABLE IF NOT EXISTS folhas_salario (
+                id TEXT PRIMARY KEY,
+                funcionario TEXT NOT NULL,
+                mes TEXT NOT NULL,
+                salario_base REAL NOT NULL,
+                descontos REAL NOT NULL,
+                liquido REAL NOT NULL,
+                estado TEXT NOT NULL,
+                criado_por TEXT NOT NULL,
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS registos_ponto (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                funcionario TEXT NOT NULL,
+                data TEXT NOT NULL,
+                entrada TEXT NOT NULL,
+                saida TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS escalonamentos_sla (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chamado_id TEXT NOT NULL REFERENCES chamados_manutencao(id),
+                nivel TEXT NOT NULL,
+                destinatario TEXT NOT NULL,
+                criado_em TEXT NOT NULL
+            );
             """
         )
+
+        for tabela, coluna, definicao in (
+            ("users", "unidade_codigo", "TEXT"),
+            ("audit", "perfil_ativo", "TEXT"),
+            ("audit", "unidade_hospitalar", "TEXT"),
+            ("audit", "dispositivo", "TEXT"),
+            ("audit", "correlation_id", "TEXT"),
+        ):
+            colunas = {linha["name"] for linha in conexao.execute(f"PRAGMA table_info({tabela})")}
+            if coluna not in colunas:
+                conexao.execute(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {definicao}")
+
+        for codigo, nome, nivel, pai in UNIDADES:
+            conexao.execute(
+                "INSERT OR IGNORE INTO unidades_organizacionais "
+                "(codigo, nome, nivel, unidade_pai_codigo, ativo) VALUES (?, ?, ?, ?, 1)",
+                (codigo, nome, nivel, pai),
+            )
 
         for username, senha, perfil, nome in USUARIOS:
             existente = conexao.execute("SELECT 1 FROM users WHERE username = ?", (username,)).fetchone()
@@ -371,6 +652,24 @@ def inicializar() -> None:
                     "INSERT INTO users (id, username, nome, senha_hash, salt, perfil) VALUES (?, ?, ?, ?, ?, ?)",
                     (username, username, nome, derivar_hash(senha, salt), salt, perfil),
                 )
+
+        for username, _senha, perfil, _nome in USUARIOS:
+            unidade_codigo = UNIDADE_POR_PERFIL.get(perfil, "DG")
+            conexao.execute("UPDATE users SET unidade_codigo = ? WHERE username = ?", (unidade_codigo, username))
+
+        for unidade_codigo, item, quantidade, minimo in (
+            ("FARM", "Paracetamol 500mg", 100, 20),
+            ("FARM", "Soro fisiologico 500ml", 60, 15),
+            ("COZ", "Refeicao padrao", 80, 20),
+            ("LAV", "Roupa de cama", 120, 30),
+            ("ENG", "Kit de calibrate", 10, 3),
+        ):
+            identificador = f"{unidade_codigo}-{item}"
+            conexao.execute(
+                "INSERT OR IGNORE INTO stock_setorial (id, unidade_codigo, item, quantidade, minimo) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (identificador, unidade_codigo, item, quantidade, minimo),
+            )
 
         for medicamento, quantidade, minimo in MEDICAMENTOS:
             conexao.execute(
