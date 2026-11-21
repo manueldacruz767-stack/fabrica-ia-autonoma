@@ -789,6 +789,26 @@ class TestesGovernaDocumentosEServicos(unittest.TestCase):
         self.assertEqual(assinatura.status_code, 201, assinatura.text)
         self.assertIn("assinatura", assinatura.json())
 
+    def test_health_metrics_e_outbox(self):
+        admin = self.token("admin", "admin123")
+        self.criar_paciente(admin)
+
+        saude = self.cliente.get("/health")
+        self.assertEqual(saude.status_code, 200)
+        self.assertEqual(saude.json()["estado"], "healthy")
+
+        metricas = self.cliente.get("/metrics")
+        self.assertEqual(metricas.status_code, 200)
+        self.assertIn("his_requisicoes_total", metricas.text)
+        self.assertIn("his_outbox_pendente", metricas.text)
+
+        publicacao = self.cliente.post("/api/eventos/publicar", headers=self.cabecalho(admin))
+        self.assertEqual(publicacao.status_code, 200, publicacao.text)
+        self.assertGreaterEqual(publicacao.json()["processados"], 1)
+
+        eventos = self.cliente.get("/api/eventos", headers=self.cabecalho(admin)).json()
+        self.assertTrue(any(evento["estado"] == "PUBLICADO" for evento in eventos))
+
     def test_agendamento_stock_contratos_cotacoes_e_rh(self):
         admin = self.token("admin", "admin123")
         rececionista = self.token("rececionista", "rececionista123")

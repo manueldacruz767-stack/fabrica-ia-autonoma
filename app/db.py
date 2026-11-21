@@ -632,6 +632,9 @@ def inicializar() -> None:
             ("audit", "unidade_hospitalar", "TEXT"),
             ("audit", "dispositivo", "TEXT"),
             ("audit", "correlation_id", "TEXT"),
+            ("outbox", "tentativas", "INTEGER NOT NULL DEFAULT 0"),
+            ("outbox", "publicado_em", "TEXT"),
+            ("outbox", "ultimo_erro", "TEXT"),
         ):
             colunas = {linha["name"] for linha in conexao.execute(f"PRAGMA table_info({tabela})")}
             if coluna not in colunas:

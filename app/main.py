@@ -1,3 +1,4 @@
+import json
 import re
 import uuid
 from contextlib import contextmanager
@@ -10,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from app import db
+from app.consumidor_outbox import publicar_pendentes
 from app.domain import (
     ESTADOS_FINAIS,
     ESTADOS_SEM_PRESCRICAO,
@@ -34,13 +36,34 @@ db.inicializar()
 
 app = FastAPI(title="HIS - Sistema de Gestao Hospitalar", version="0.1.0")
 DIRETORIO_STATIC = Path(__file__).resolve().parent / "static"
+METRICAS = {"requisicoes": 0, "erros": 0, "eventos_publicados": 0}
 
 
 @app.middleware("http")
 async def correlation_id_middleware(request: Request, call_next):
     request.state.correlation_id = request.headers.get("x-correlation-id") or str(uuid.uuid4())
-    resposta = await call_next(request)
+    METRICAS["requisicoes"] += 1
+    try:
+        resposta = await call_next(request)
+    except Exception:
+        METRICAS["erros"] += 1
+        raise
+    if resposta.status_code >= 500:
+        METRICAS["erros"] += 1
     resposta.headers["X-Correlation-ID"] = request.state.correlation_id
+    print(
+        json.dumps(
+            {
+                "evento": "http_request",
+                "correlation_id": request.state.correlation_id,
+                "metodo": request.method,
+                "caminho": request.url.path,
+                "status": resposta.status_code,
+                "utilizador": getattr(getattr(request.state, "usuario", None), "get", lambda *_: None)("id"),
+            },
+            sort_keys=True,
+        )
+    )
     return resposta
 
 
@@ -369,6 +392,50 @@ def orcamento_atual(conexao):
     if not linha:
         raise HTTPException(status_code=404, detail="Orcamento do exercicio nao encontrado")
     return linha
+
+
+@app.get("/health")
+def health() -> dict:
+    with conexao_aberta() as conexao:
+        conexao.execute("SELECT 1").fetchone()
+    return {"estado": "healthy", "db": "ok", "versao": app.version}
+
+
+@app.get("/metrics", include_in_schema=False)
+def metrics() -> str:
+    linhas = [
+        "# HELP his_requisicoes_total Numero de requisicoes HTTP processadas.",
+        "# TYPE his_requisicoes_total counter",
+        f"his_requisicoes_total {METRICAS['requisicoes']}",
+        "# HELP his_erros_total Numero de requisicoes com erro.",
+        "# TYPE his_erros_total counter",
+        f"his_erros_total {METRICAS['erros']}",
+        "# HELP his_eventos_publicados_total Eventos do outbox publicados.",
+        "# TYPE his_eventos_publicados_total counter",
+        f"his_eventos_publicados_total {METRICAS['eventos_publicados']}",
+    ]
+    with conexao_aberta() as conexao:
+        pendentes = conexao.execute(
+            "SELECT COUNT(*) AS total FROM outbox WHERE estado = 'PENDENTE'"
+        ).fetchone()["total"]
+        alertas = conexao.execute("SELECT COUNT(*) AS total FROM alerts WHERE lido = 0").fetchone()["total"]
+        internamentos = conexao.execute(
+            "SELECT COUNT(*) AS total FROM episodes WHERE estado = 'INTERNADO_ATIVO'"
+        ).fetchone()["total"]
+    linhas.extend(
+        [
+            "# HELP his_outbox_pendente Eventos aguardando publicacao.",
+            "# TYPE his_outbox_pendente gauge",
+            f"his_outbox_pendente {pendentes}",
+            "# HELP his_alertas_nao_lidos Alertas clinicos e operacionais nao lidos.",
+            "# TYPE his_alertas_nao_lidos gauge",
+            f"his_alertas_nao_lidos {alertas}",
+            "# HELP his_internamentos_ativos Episodios em internamento ativo.",
+            "# TYPE his_internamentos_ativos gauge",
+            f"his_internamentos_ativos {internamentos}",
+        ]
+    )
+    return "\n".join(linhas) + "\n"
 
 
 @app.post("/api/auth/login")
@@ -1001,13 +1068,28 @@ def listar_eventos(usuario: dict = Depends(exigir("auditoria", "administrador"))
         return em_lista(conexao.execute("SELECT * FROM outbox ORDER BY id DESC LIMIT 200").fetchall())
 
 
+@app.post("/api/eventos/publicar")
+def publicar_eventos(usuario: dict = Depends(exigir("administrador", "ti"))) -> dict:
+    resultado = publicar_pendentes()
+    METRICAS["eventos_publicados"] += resultado["processados"]
+    with conexao_aberta() as conexao:
+        registrar_auditoria(
+            conexao,
+            usuario,
+            "OUTBOX_PUBLICADO",
+            "outbox",
+            novo={"processados": resultado["processados"]},
+        )
+        conexao.commit()
+    return resultado
+
+
 @app.get("/api/dashboard")
 def dashboard(usuario: dict = Depends(usuario_atual)) -> dict:
-    marcadores = ",".join("?" for _ in ESTADOS_FINAIS)
     with conexao_aberta() as conexao:
         episodios_ativos = conexao.execute(
-            f"SELECT COUNT(*) AS total FROM episodes WHERE estado NOT IN ({marcadores})",
-            tuple(ESTADOS_FINAIS),
+            "SELECT COUNT(*) AS total FROM episodes WHERE estado NOT IN (?, ?, ?, ?, ?, ?)",
+            tuple(sorted(ESTADOS_FINAIS)),
         ).fetchone()["total"]
         fila = conexao.execute(
             "SELECT COUNT(*) AS total FROM triages t JOIN episodes e ON e.id = t.episode_id "
