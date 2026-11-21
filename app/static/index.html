@@ -32,6 +32,9 @@
       <button data-secao="pacientes">Pacientes</button>
       <button data-secao="episodios">Episodios</button>
       <button data-secao="fila">Fila medica</button>
+      <button data-secao="ambulatorio">Ambulatorio</button>
+      <button data-secao="cirurgia">Cirurgia</button>
+      <button data-secao="suporte">Esterilizacao e Manutencao</button>
       <button data-secao="leitos">Leitos</button>
       <button data-secao="stock">Stock e alertas</button>
       <button data-secao="rh">RH</button>
@@ -128,6 +131,64 @@
       <div id="listaPrescricoes"></div>
       <h3>Alertas</h3>
       <div id="listaAlertas"></div>
+    </section>
+
+    <section id="ambulatorio" class="secao" hidden>
+      <h2>Consulta ambulatorial</h2>
+      <div class="linha-form">
+        <select id="ambEpisodio"></select>
+        <button id="botaoCheckIn" type="button">Check-in</button>
+        <button id="botaoFinalizarConsulta" type="button">Finalizar consulta</button>
+      </div>
+      <form id="formPreConsulta" class="linha-form">
+        <input id="preSinais" placeholder="Sinais vitais" required>
+        <input id="preObs" placeholder="Observacao">
+        <button type="submit">Registar pre-consulta</button>
+      </form>
+    </section>
+
+    <section id="cirurgia" class="secao" hidden>
+      <h2>Bloco operatorio e UCI</h2>
+      <form id="formCirurgia" class="linha-form">
+        <select id="cirEpisodio"></select>
+        <input id="cirDescricao" placeholder="Procedimento" required>
+        <input id="cirChecklist" placeholder="Checklist de cirurgia segura" required>
+        <select id="cirEquipamento"></select>
+        <button type="submit">Iniciar cirurgia</button>
+      </form>
+      <div class="linha-form">
+        <select id="cirSelecionada"></select>
+        <select id="cirDestino"><option>ENFERMARIA</option><option>UCI</option></select>
+        <button id="botaoConcluirCirurgia" type="button">Concluir cirurgia</button>
+      </div>
+      <div id="tabelaCirurgias"></div>
+    </section>
+
+    <section id="suporte" class="secao" hidden>
+      <h2>Esterilizacao, equipamentos e manutencao</h2>
+      <form id="formEsterilizacao" class="linha-form">
+        <input id="estLote" placeholder="Lote" required>
+        <input id="estDescricao" placeholder="Material esterilizado" required>
+        <input id="estData" type="date" required>
+        <input id="estValidade" type="date" required>
+        <input id="estIndicador" placeholder="Indicador biologico" value="NEGATIVO" required>
+        <button type="submit">Registar lote</button>
+      </form>
+      <div id="tabelaEsterilizacoes"></div>
+      <form id="formEquipamento" class="linha-form">
+        <input id="eqCodigo" placeholder="Codigo do equipamento" required>
+        <input id="eqDescricao" placeholder="Descricao" required>
+        <input id="eqUnidade" placeholder="Unidade" required>
+        <input id="eqManutencao" type="date" required>
+        <button type="submit">Criar equipamento</button>
+      </form>
+      <form id="formChamado" class="linha-form">
+        <select id="manEquipamento"></select>
+        <input id="manDescricao" placeholder="Descricao da avaria" required>
+        <select id="manPrioridade"><option>NORMAL</option><option>ALTA</option><option>CRITICA</option></select>
+        <button type="submit">Abrir chamado</button>
+      </form>
+      <div id="tabelaChamados"></div>
     </section>
 
     <section id="rh" class="secao" hidden>

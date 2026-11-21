@@ -146,13 +146,17 @@ async function carregar() {
       )).join("")
     );
 
-    const [funcionarios, escalas, pedidosRh, requisicoes, empenhos, pedidosMdt] = await Promise.all([
+    const [funcionarios, escalas, pedidosRh, requisicoes, empenhos, pedidosMdt, cirurgias, esterilizacoes, equipamentos, chamados] = await Promise.all([
       api("/api/rh/funcionarios").catch(() => []),
       api("/api/rh/escalas").catch(() => []),
       api("/api/rh/pedidos").catch(() => []),
       api("/api/compras/requisicoes").catch(() => []),
       api("/api/financeiro/empenhos").catch(() => []),
       api("/api/mdt/pedidos").catch(() => []),
+      api("/api/cirurgias").catch(() => []),
+      api("/api/esterilizacoes").catch(() => []),
+      api("/api/equipamentos").catch(() => []),
+      api("/api/manutencao/chamados").catch(() => []),
     ]);
 
     renderizar("tabelaFuncionarios", [
@@ -197,6 +201,36 @@ async function carregar() {
       { titulo: "Estado", chave: "estado" },
       { titulo: "Resultado", chave: "resultado" },
     ], pedidosMdt);
+
+    renderizar("tabelaCirurgias", [
+      { titulo: "ID", chave: "id" },
+      { titulo: "Procedimento", chave: "descricao" },
+      { titulo: "Estado", chave: "estado" },
+    ], cirurgias);
+
+    renderizar("tabelaEsterilizacoes", [
+      { titulo: "Lote", chave: "lote" },
+      { titulo: "Material", chave: "descricao" },
+      { titulo: "Validade", chave: "validade" },
+      { titulo: "Indicador", chave: "indicador_biologico" },
+    ], esterilizacoes);
+
+    renderizar("tabelaChamados", [
+      { titulo: "ID", chave: "id" },
+      { titulo: "Equipamento", chave: "equipamento_id" },
+      { titulo: "Prioridade", chave: "prioridade" },
+      { titulo: "Estado", chave: "estado" },
+      { titulo: "SLA", chave: "sla" },
+    ], chamados);
+
+    preencherSelect("ambEpisodio", episodios.filter((episodio) => (
+      episodio.tipo === "AMBULATORIO"
+      && ["AGENDADO", "CHECK_IN_REALIZADO", "PRE_CONSULTA", "EM_CONSULTA"].includes(episodio.estado)
+    )), "id", "paciente_nome", "Seleciona o episodio ambulatorial");
+    preencherSelect("cirEpisodio", episodios.filter((episodio) => episodio.estado === "INTERNADO_ATIVO"), "id", "paciente_nome", "Seleciona o internamento");
+    preencherSelect("cirSelecionada", cirurgias.filter((cirurgia) => cirurgia.estado === "EM_CIRURGIA"), "id", "descricao", "Seleciona a cirurgia");
+    preencherSelect("cirEquipamento", equipamentos.filter((equipamento) => equipamento.estado === "ATIVO"), "id", "codigo", "Seleciona o equipamento");
+    preencherSelect("manEquipamento", equipamentos, "id", "codigo", "Seleciona o equipamento");
 
     preencherSelect("escFuncionario", funcionarios, "id", "nome", "Seleciona o funcionario");
     preencherSelect("rhFuncionario", funcionarios, "id", "nome", "Seleciona o funcionario");
@@ -325,6 +359,26 @@ const acoes = [
     tipo: document.getElementById("mdtTipo").value,
     descricao: document.getElementById("mdtDescricao").value,
   })],
+  ["formPreConsulta", null, () => null],
+  ["formCirurgia", null, () => null],
+  ["formEsterilizacao", "/api/esterilizacoes", () => ({
+    lote: document.getElementById("estLote").value,
+    descricao: document.getElementById("estDescricao").value,
+    esterilizado_em: document.getElementById("estData").value,
+    validade: document.getElementById("estValidade").value,
+    indicador_biologico: document.getElementById("estIndicador").value,
+  })],
+  ["formEquipamento", "/api/equipamentos", () => ({
+    codigo: document.getElementById("eqCodigo").value,
+    descricao: document.getElementById("eqDescricao").value,
+    unidade: document.getElementById("eqUnidade").value,
+    proxima_manutencao: document.getElementById("eqManutencao").value,
+  })],
+  ["formChamado", "/api/manutencao/chamados", () => ({
+    equipamento_id: document.getElementById("manEquipamento").value,
+    descricao: document.getElementById("manDescricao").value,
+    prioridade: document.getElementById("manPrioridade").value,
+  })],
 ];
 
 for (const [idFormulario, caminho, corpo] of acoes) {
@@ -362,6 +416,23 @@ for (const [idFormulario, caminho, corpo] of acoes) {
         await api(`/api/leitos/${document.getElementById("aloLeito").value}/alocar`, {
           method: "POST",
           body: JSON.stringify({ episodio_id: document.getElementById("aloEpisodio").value }),
+        });
+      } else if (idFormulario === "formPreConsulta") {
+        await api(`/api/episodios/${document.getElementById("ambEpisodio").value}/pre-consulta`, {
+          method: "POST",
+          body: JSON.stringify({
+            sinais_vitais: document.getElementById("preSinais").value,
+            observacao: document.getElementById("preObs").value || null,
+          }),
+        });
+      } else if (idFormulario === "formCirurgia") {
+        await api(`/api/cirurgias?episodio_id=${document.getElementById("cirEpisodio").value}`, {
+          method: "POST",
+          body: JSON.stringify({
+            descricao: document.getElementById("cirDescricao").value,
+            checklist: document.getElementById("cirChecklist").value,
+            equipamento_id: document.getElementById("cirEquipamento").value || null,
+          }),
         });
       }
       evento.target.reset();
@@ -441,6 +512,16 @@ async function acaoBotao(id, caminho, corpo, texto) {
     } catch (erro) { mensagem(erro.message, true); }
   });
 }
+
+acaoBotao("botaoCheckIn", () => `/api/episodios/${document.getElementById("ambEpisodio").value}/check-in`, () => ({
+  observacao: "Check-in registado na interface",
+}), "Check-in registado.");
+
+acaoBotao("botaoFinalizarConsulta", () => `/api/episodios/${document.getElementById("ambEpisodio").value}/finalizar`, null, "Consulta finalizada.");
+
+acaoBotao("botaoConcluirCirurgia", () => `/api/cirurgias/${document.getElementById("cirSelecionada").value}/concluir`, () => ({
+  destino: document.getElementById("cirDestino").value,
+}), "Cirurgia concluida.");
 
 acaoBotao("botaoAprovarRh", () => `/api/rh/pedidos/${document.getElementById("rhPedido").value}/aprovar`, () => ({
   parecer: document.getElementById("rhParecer").value,

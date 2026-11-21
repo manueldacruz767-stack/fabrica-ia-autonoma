@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+import uuid
 
 DIRETORIO_TESTE = tempfile.mkdtemp(prefix="his-test-")
 os.environ["HIS_DB_PATH"] = os.path.join(DIRETORIO_TESTE, "his.db")
@@ -74,15 +75,6 @@ class TestesAppHospitalar(unittest.TestCase):
         fila = self.cliente.get("/api/fila", headers=self.cabecalho(medico)).json()
         self.assertTrue(any(item["episodio_id"] == episodio for item in fila))
 
-        leitos = self.cliente.get("/api/leitos", headers=self.cabecalho(enfermeiro)).json()
-        leito_livre = next(leito for leito in leitos if leito["estado"] == "LIVRE")
-        alocacao = self.cliente.post(
-            f"/api/leitos/{leito_livre['id']}/alocar",
-            headers=self.cabecalho(enfermeiro),
-            json={"episodio_id": episodio},
-        )
-        self.assertEqual(alocacao.status_code, 200, alocacao.text)
-
         alta_sem_atendimento = self.cliente.post(
             f"/api/episodios/{episodio}/alta-medica",
             headers=self.cabecalho(medico),
@@ -95,6 +87,15 @@ class TestesAppHospitalar(unittest.TestCase):
             json={"anamnese": "Dor subita", "hipotese": "Sindrome coronaria aguda"},
         )
         self.assertEqual(atendimento.status_code, 200, atendimento.text)
+
+        leitos = self.cliente.get("/api/leitos", headers=self.cabecalho(enfermeiro)).json()
+        leito_livre = next(leito for leito in leitos if leito["estado"] == "LIVRE")
+        alocacao = self.cliente.post(
+            f"/api/leitos/{leito_livre['id']}/alocar",
+            headers=self.cabecalho(enfermeiro),
+            json={"episodio_id": episodio},
+        )
+        self.assertEqual(alocacao.status_code, 200, alocacao.text)
 
         prescricao = self.cliente.post(
             f"/api/episodios/{episodio}/prescricoes",
@@ -416,6 +417,235 @@ class TestesModulosAmpliados(unittest.TestCase):
 
         dashboard = self.cliente.get("/api/dashboard", headers=self.cabecalho(admin)).json()
         for chave in ("escalas_hoje", "pedidos_rh_pendentes", "compras_pendentes", "empenhos_ativos", "mdt_pendentes"):
+            self.assertIn(chave, dashboard)
+
+
+class TestesFluxosClinicosAmpliados(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.cliente = TestClient(app)
+
+    def token(self, username: str, senha: str) -> str:
+        resposta = self.cliente.post("/api/auth/login", json={"username": username, "password": senha})
+        self.assertEqual(resposta.status_code, 200, resposta.text)
+        return resposta.json()["token"]
+
+    def cabecalho(self, token: str) -> dict:
+        return {"Authorization": f"Bearer {token}"}
+
+    def criar_cenario_urgencia(self, admin: str, enfermeiro: str, medico: str) -> tuple[str, str]:
+        paciente = self.cliente.post(
+            "/api/pacientes",
+            headers=self.cabecalho(admin),
+            json={"nome": "Paciente Fluxo Ampliado", "desconhecido": False},
+        ).json()["id"]
+        episodio = self.cliente.post(
+            "/api/episodios",
+            headers=self.cabecalho(enfermeiro),
+            json={"paciente_id": paciente, "tipo": "URGENCIA"},
+        ).json()["id"]
+        self.assertEqual(
+            self.cliente.post(
+                f"/api/episodios/{episodio}/triagem",
+                headers=self.cabecalho(enfermeiro),
+                json={"queixa": "Dor abdominal", "sinais_vitais": "PA 120/80", "cor": "VERDE"},
+            ).status_code,
+            200,
+        )
+        self.assertEqual(
+            self.cliente.post(
+                f"/api/episodios/{episodio}/atendimento",
+                headers=self.cabecalho(medico),
+                json={"anamnese": "Dor desde ontem", "hipotese": "Gastrite"},
+            ).status_code,
+            200,
+        )
+        return paciente, episodio
+
+    def test_prescricao_bloqueada_apos_alta_medica(self):
+        admin = self.token("admin", "admin123")
+        enfermeiro = self.token("enfermeiro", "enfermeiro123")
+        medico = self.token("medico", "medico123")
+        _, episodio = self.criar_cenario_urgencia(admin, enfermeiro, medico)
+
+        primeira = self.cliente.post(
+            f"/api/episodios/{episodio}/prescricoes",
+            headers=self.cabecalho(medico),
+            json={"medicamento": "Paracetamol 500mg", "dose": "500mg"},
+        )
+        self.assertEqual(primeira.status_code, 201, primeira.text)
+
+        alta = self.cliente.post(f"/api/episodios/{episodio}/alta-medica", headers=self.cabecalho(medico))
+        self.assertEqual(alta.status_code, 200, alta.text)
+
+        depois = self.cliente.post(
+            f"/api/episodios/{episodio}/prescricoes",
+            headers=self.cabecalho(medico),
+            json={"medicamento": "Paracetamol 500mg", "dose": "500mg"},
+        )
+        self.assertEqual(depois.status_code, 400)
+        self.assertIn("encerrado", depois.json()["detail"].lower())
+
+    def test_fluxo_ambulatorial_check_in_pre_consulta_consulta(self):
+        admin = self.token("admin", "admin123")
+        enfermeiro = self.token("enfermeiro", "enfermeiro123")
+        medico = self.token("medico", "medico123")
+        gestor = self.token("gestor", "gestor123")
+
+        paciente = self.cliente.post(
+            "/api/pacientes",
+            headers=self.cabecalho(admin),
+            json={"nome": "Paciente Ambulatorio", "desconhecido": False},
+        ).json()["id"]
+        episodio = self.cliente.post(
+            "/api/episodios",
+            headers=self.cabecalho(enfermeiro),
+            json={"paciente_id": paciente, "tipo": "AMBULATORIO"},
+        ).json()["id"]
+        self.assertTrue(episodio)
+        self.assertEqual(self.cliente.get("/api/episodios", headers=self.cabecalho(admin)).status_code, 200)
+
+        sem_check_in = self.cliente.post(
+            f"/api/episodios/{episodio}/atendimento",
+            headers=self.cabecalho(medico),
+            json={"anamnese": "Queixa", "hipotese": "Hipoteses"},
+        )
+        self.assertEqual(sem_check_in.status_code, 400)
+
+        check_in = self.cliente.post(
+            f"/api/episodios/{episodio}/check-in",
+            headers=self.cabecalho(gestor),
+            json={"observacao": "Paciente presente"},
+        )
+        self.assertEqual(check_in.status_code, 200, check_in.text)
+        self.assertEqual(check_in.json()["estado"], "CHECK_IN_REALIZADO")
+
+        pre_consulta = self.cliente.post(
+            f"/api/episodios/{episodio}/pre-consulta",
+            headers=self.cabecalho(enfermeiro),
+            json={"sinais_vitais": "PA 130/85; FC 78", "observacao": "Sem alteracoes"},
+        )
+        self.assertEqual(pre_consulta.status_code, 200, pre_consulta.text)
+        self.assertEqual(pre_consulta.json()["estado"], "PRE_CONSULTA")
+
+        atendimento = self.cliente.post(
+            f"/api/episodios/{episodio}/atendimento",
+            headers=self.cabecalho(medico),
+            json={"anamnese": "Dor persistente", "hipotese": "Evaluar"},
+        )
+        self.assertEqual(atendimento.status_code, 200, atendimento.text)
+        self.assertEqual(atendimento.json()["estado"], "EM_CONSULTA")
+
+        prescricao = self.cliente.post(
+            f"/api/episodios/{episodio}/prescricoes",
+            headers=self.cabecalho(medico),
+            json={"medicamento": "Paracetamol 500mg", "dose": "500mg"},
+        )
+        self.assertEqual(prescricao.status_code, 201, prescricao.text)
+
+        finalizar = self.cliente.post(f"/api/episodios/{episodio}/finalizar", headers=self.cabecalho(medico))
+        self.assertEqual(finalizar.status_code, 200, finalizar.text)
+        self.assertEqual(finalizar.json()["estado"], "FINALIZADO")
+
+    def test_internamento_cirurgia_e_uci(self):
+        admin = self.token("admin", "admin123")
+        enfermeiro = self.token("enfermeiro", "enfermeiro123")
+        medico = self.token("medico", "medico123")
+        gestor = self.token("gestor", "gestor123")
+        _, episodio = self.criar_cenario_urgencia(admin, enfermeiro, medico)
+
+        leitos = self.cliente.get("/api/leitos", headers=self.cabecalho(admin)).json()
+        leito = next(item for item in leitos if item["estado"] == "LIVRE" and item["unidade"] != "UCI")
+        alocacao = self.cliente.post(
+            f"/api/leitos/{leito['id']}/alocar",
+            headers=self.cabecalho(gestor),
+            json={"episodio_id": episodio, "motivo": "Observacao clinica"},
+        )
+        self.assertEqual(alocacao.status_code, 200, alocacao.text)
+        self.assertEqual(alocacao.json()["episodio_estado"], "INTERNADO_ATIVO")
+
+        bloqueado = self.cliente.post(
+            f"/api/cirurgias?episodio_id={episodio}",
+            headers=self.cabecalho(medico),
+            json={"descricao": "Cirurgia", "checklist": "Checklist conforme", "equipamento_id": "VEN-01"},
+        )
+        self.assertEqual(bloqueado.status_code, 400)
+
+        cirurgia = self.cliente.post(
+            f"/api/cirurgias?episodio_id={episodio}",
+            headers=self.cabecalho(medico),
+            json={"descricao": "Apendicectomia", "checklist": "Checklist conforme", "equipamento_id": "MON-01"},
+        )
+        self.assertEqual(cirurgia.status_code, 201, cirurgia.text)
+        cirurgia_id = cirurgia.json()["id"]
+
+        concluida = self.cliente.post(
+            f"/api/cirurgias/{cirurgia_id}/concluir",
+            headers=self.cabecalho(medico),
+            json={"destino": "UCI"},
+        )
+        self.assertEqual(concluida.status_code, 200, concluida.text)
+        self.assertEqual(concluida.json()["destino"], "UCI")
+
+        episodio_atualizado = next(
+            item for item in self.cliente.get("/api/episodios", headers=self.cabecalho(admin)).json()
+            if item["id"] == episodio
+        )
+        self.assertEqual(episodio_atualizado["estado"], "INTERNADO_ATIVO")
+
+    def test_esterilizacao_e_manutencao(self):
+        admin = self.token("admin", "admin123")
+        enfermeiro = self.token("enfermeiro", "enfermeiro123")
+        gestor = self.token("gestor", "gestor123")
+
+        lote = f"LOTE-{uuid.uuid4().hex[:8]}"
+        esterilizacao = self.cliente.post(
+            "/api/esterilizacoes",
+            headers=self.cabecalho(enfermeiro),
+            json={
+                "lote": lote,
+                "descricao": "Kit cirurgico",
+                "esterilizado_em": "2026-11-21T08:00:00+00:00",
+                "validade": "2026-12-21",
+                "indicador_biologico": "NEGATIVO",
+            },
+        )
+        self.assertEqual(esterilizacao.status_code, 201, esterilizacao.text)
+        lotes = self.cliente.get("/api/esterilizacoes", headers=self.cabecalho(admin)).json()
+        self.assertTrue(any(item["lote"] == lote for item in lotes))
+
+        equipamento = self.cliente.post(
+            "/api/equipamentos",
+            headers=self.cabecalho(gestor),
+            json={
+                "codigo": f"EQ-{uuid.uuid4().hex[:6]}",
+                "descricao": "Monitor de teste",
+                "unidade": "UCI",
+                "proxima_manutencao": "2030-01-01",
+            },
+        )
+        self.assertEqual(equipamento.status_code, 201, equipamento.text)
+        equipamento_id = equipamento.json()["id"]
+
+        chamado = self.cliente.post(
+            "/api/manutencao/chamados",
+            headers=self.cabecalho(enfermeiro),
+            json={"equipamento_id": equipamento_id, "descricao": "Falha intermitente", "prioridade": "CRITICA"},
+        )
+        self.assertEqual(chamado.status_code, 201, chamado.text)
+        chamado_id = chamado.json()["id"]
+
+        alertas = self.cliente.get("/api/alertas", headers=self.cabecalho(admin)).json()
+        self.assertTrue(any(chamado_id in item["mensagem"] for item in alertas))
+
+        concluido = self.cliente.post(
+            f"/api/manutencao/chamados/{chamado_id}/concluir", headers=self.cabecalho(gestor)
+        )
+        self.assertEqual(concluido.status_code, 200, concluido.text)
+        self.assertEqual(concluido.json()["estado"], "CONCLUIDO")
+
+        dashboard = self.cliente.get("/api/dashboard", headers=self.cabecalho(admin)).json()
+        for chave in ("internamentos_ativos", "cirurgias_em_curso", "equipamentos_bloqueados", "chamados_abertos"):
             self.assertIn(chave, dashboard)
 
 

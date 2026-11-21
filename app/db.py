@@ -2,7 +2,7 @@ import hashlib
 import os
 import secrets
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 BASE = Path(__file__).resolve().parent.parent
@@ -298,6 +298,68 @@ def inicializar() -> None:
                 criado_em TEXT NOT NULL,
                 concluido_em TEXT
             );
+
+            CREATE TABLE IF NOT EXISTS pre_consultas (
+                id TEXT PRIMARY KEY,
+                episode_id TEXT NOT NULL REFERENCES episodes(id),
+                sinais_vitais TEXT NOT NULL,
+                observacao TEXT,
+                enfermeiro_id TEXT NOT NULL,
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS internamentos (
+                id TEXT PRIMARY KEY,
+                episode_id TEXT NOT NULL REFERENCES episodes(id),
+                leito_id TEXT NOT NULL REFERENCES beds(id),
+                motivo TEXT NOT NULL,
+                estado TEXT NOT NULL,
+                medico_id TEXT NOT NULL,
+                criado_em TEXT NOT NULL,
+                alta_em TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS cirurgias (
+                id TEXT PRIMARY KEY,
+                episode_id TEXT NOT NULL REFERENCES episodes(id),
+                descricao TEXT NOT NULL,
+                checklist TEXT NOT NULL,
+                equipamento_id TEXT,
+                estado TEXT NOT NULL,
+                criado_por TEXT NOT NULL,
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS equipamentos (
+                id TEXT PRIMARY KEY,
+                codigo TEXT UNIQUE NOT NULL,
+                descricao TEXT NOT NULL,
+                unidade TEXT NOT NULL,
+                proxima_manutencao TEXT NOT NULL,
+                estado TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS esterilizacoes (
+                id TEXT PRIMARY KEY,
+                lote TEXT UNIQUE NOT NULL,
+                descricao TEXT NOT NULL,
+                esterilizado_em TEXT NOT NULL,
+                validade TEXT NOT NULL,
+                indicador_biologico TEXT NOT NULL,
+                responsavel_id TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS chamados_manutencao (
+                id TEXT PRIMARY KEY,
+                equipamento_id TEXT NOT NULL REFERENCES equipamentos(id),
+                descricao TEXT NOT NULL,
+                prioridade TEXT NOT NULL,
+                estado TEXT NOT NULL,
+                sla TEXT NOT NULL,
+                criado_por TEXT NOT NULL,
+                criado_em TEXT NOT NULL,
+                concluido_em TEXT
+            );
             """
         )
 
@@ -326,6 +388,25 @@ def inicializar() -> None:
             conexao.execute(
                 "INSERT OR IGNORE INTO staff (id, nome, perfil_funcional, unidade) VALUES (?, ?, ?, ?)",
                 (identificador, nome, perfil, unidade),
+            )
+
+        hoje = datetime.now(timezone.utc).date()
+        for codigo, descricao, unidade, dias in (
+            ("MON-01", "Monitor multiparametros", "UCI", 30),
+            ("VEN-01", "Ventilador de UCI", "UCI", -2),
+            ("AUT-01", "Autoclave central", "Esterilizacao", 60),
+        ):
+            conexao.execute(
+                "INSERT OR IGNORE INTO equipamentos "
+                "(id, codigo, descricao, unidade, proxima_manutencao, estado) VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    codigo,
+                    codigo,
+                    descricao,
+                    unidade,
+                    (hoje + timedelta(days=dias)).isoformat(),
+                    "BLOQUEADO" if dias < 0 else "ATIVO",
+                ),
             )
 
         exercicio = str(datetime.now(timezone.utc).year)

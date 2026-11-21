@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from app import db
 from app.domain import (
     ESTADOS_FINAIS,
+    ESTADOS_SEM_PRESCRICAO,
     EstadoInvalido,
     criar_id,
     em_lista,
@@ -78,6 +79,7 @@ class StockModel(BaseModel):
 
 class AlocacaoModel(BaseModel):
     episodio_id: str
+    motivo: str = "Internamento clinico"
 
 
 class FuncionarioModel(BaseModel):
@@ -134,6 +136,51 @@ class MdtPedidoModel(BaseModel):
 
 class MdtResultadoModel(BaseModel):
     resultado: str = Field(min_length=3)
+
+
+class CheckInModel(BaseModel):
+    observacao: str | None = None
+
+
+class PreConsultaModel(BaseModel):
+    sinais_vitais: str = Field(min_length=3)
+    observacao: str | None = None
+
+
+class InternamentoModel(BaseModel):
+    leito_id: str
+    motivo: str = Field(min_length=3)
+
+
+class CirurgiaModel(BaseModel):
+    descricao: str = Field(min_length=3)
+    checklist: str = Field(min_length=3)
+    equipamento_id: str | None = None
+
+
+class ConcluirCirurgiaModel(BaseModel):
+    destino: str = "ENFERMARIA"
+
+
+class EsterilizacaoModel(BaseModel):
+    lote: str = Field(min_length=3)
+    descricao: str = Field(min_length=3)
+    esterilizado_em: str = Field(min_length=8)
+    validade: str = Field(min_length=8)
+    indicador_biologico: str = Field(min_length=2)
+
+
+class EquipamentoModel(BaseModel):
+    codigo: str = Field(min_length=2)
+    descricao: str = Field(min_length=3)
+    unidade: str = Field(min_length=2)
+    proxima_manutencao: str = Field(min_length=8)
+
+
+class ChamadoModel(BaseModel):
+    equipamento_id: str
+    descricao: str = Field(min_length=3)
+    prioridade: str = "NORMAL"
 
 
 LIMITE_ALCADA_1 = 5000.0
@@ -427,6 +474,65 @@ def ver_prontuario(episodio_id: str, usuario: dict = Depends(usuario_atual)) -> 
         return {"episodio": dict(episodio), "triagens": triagens, "notas": notas, "prescricoes": prescricoes}
 
 
+@app.post("/api/episodios/{episodio_id}/check-in")
+def registar_check_in(
+    episodio_id: str,
+    dados: CheckInModel,
+    usuario: dict = Depends(exigir("enfermeiro", "medico", "administrador", "gestor")),
+) -> dict:
+    with conexao_aberta() as conexao:
+        episodio = obter_episodio(conexao, episodio_id)
+        if episodio["tipo"] != "AMBULATORIO":
+            raise HTTPException(status_code=400, detail="Check-in so se aplica a episodio ambulatorial")
+        estado = validar_transicao(episodio["estado"], "CHECK_IN_REALIZADO")
+        conexao.execute(
+            "UPDATE episodes SET estado = ?, atualizado_em = ? WHERE id = ?",
+            (estado, db.agora(), episodio_id),
+        )
+        registrar_auditoria(
+            conexao,
+            usuario,
+            "CHECK_IN_REGISTADO",
+            episodio_id,
+            novo={"observacao": dados.observacao},
+        )
+        registrar_evento(conexao, "CheckInRealizado", {"episodio_id": episodio_id})
+        conexao.commit()
+    return {"estado": estado}
+
+
+@app.post("/api/episodios/{episodio_id}/pre-consulta")
+def registar_pre_consulta(
+    episodio_id: str,
+    dados: PreConsultaModel,
+    usuario: dict = Depends(exigir("enfermeiro", "administrador")),
+) -> dict:
+    with conexao_aberta() as conexao:
+        episodio = obter_episodio(conexao, episodio_id)
+        estado = validar_transicao(episodio["estado"], "PRE_CONSULTA")
+        identificador = criar_id("PRECON")
+        conexao.execute(
+            "INSERT INTO pre_consultas (id, episode_id, sinais_vitais, observacao, enfermeiro_id, criado_em) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                identificador,
+                episodio_id,
+                dados.sinais_vitais.strip(),
+                dados.observacao,
+                usuario["id"],
+                db.agora(),
+            ),
+        )
+        conexao.execute(
+            "UPDATE episodes SET estado = ?, atualizado_em = ? WHERE id = ?",
+            (estado, db.agora(), episodio_id),
+        )
+        registrar_auditoria(conexao, usuario, "PRE_CONSULTA_REGISTADA", episodio_id, novo={"id": identificador})
+        registrar_evento(conexao, "PreConsultaRegistada", {"episodio_id": episodio_id})
+        conexao.commit()
+    return {"id": identificador, "estado": estado}
+
+
 @app.post("/api/episodios/{episodio_id}/atendimento")
 def registar_atendimento(
     episodio_id: str,
@@ -435,10 +541,15 @@ def registar_atendimento(
 ) -> dict:
     with conexao_aberta() as conexao:
         episodio = obter_episodio(conexao, episodio_id)
-        if episodio["estado"] in ESTADOS_FINAIS:
+        if episodio["estado"] in ESTADOS_SEM_PRESCRICAO:
             raise HTTPException(status_code=400, detail="Episodio encerrado")
         estado = episodio["estado"]
-        if estado != "EM_ATENDIMENTO":
+        if episodio["tipo"] == "AMBULATORIO":
+            if estado not in {"PRE_CONSULTA", "EM_CONSULTA"}:
+                raise HTTPException(status_code=400, detail="Faz check-in e pre-consulta antes do atendimento")
+            if estado == "PRE_CONSULTA":
+                estado = validar_transicao(estado, "EM_CONSULTA")
+        elif estado != "EM_ATENDIMENTO":
             estado = validar_transicao(estado, "EM_ATENDIMENTO")
         nota_id = criar_id("NOT")
         conexao.execute(
@@ -455,6 +566,21 @@ def registar_atendimento(
     return {"id": nota_id, "estado": estado}
 
 
+@app.post("/api/episodios/{episodio_id}/finalizar")
+def finalizar_consulta(episodio_id: str, usuario: dict = Depends(exigir("medico", "administrador"))) -> dict:
+    with conexao_aberta() as conexao:
+        episodio = obter_episodio(conexao, episodio_id)
+        estado = validar_transicao(episodio["estado"], "FINALIZADO")
+        conexao.execute(
+            "UPDATE episodes SET estado = ?, atualizado_em = ? WHERE id = ?",
+            (estado, db.agora(), episodio_id),
+        )
+        registrar_auditoria(conexao, usuario, "CONSULTA_FINALIZADA", episodio_id)
+        registrar_evento(conexao, "ConsultaFinalizada", {"episodio_id": episodio_id})
+        conexao.commit()
+    return {"estado": estado}
+
+
 @app.post("/api/episodios/{episodio_id}/prescricoes", status_code=201)
 def criar_prescricao(
     episodio_id: str,
@@ -464,8 +590,8 @@ def criar_prescricao(
     validar_dose(dados.dose)
     with conexao_aberta() as conexao:
         episodio = obter_episodio(conexao, episodio_id)
-        if episodio["estado"] in ESTADOS_FINAIS:
-            raise HTTPException(status_code=400, detail="Episodio encerrado")
+        if episodio["estado"] in ESTADOS_SEM_PRESCRICAO:
+            raise HTTPException(status_code=400, detail="Episodio encerrado para prescricao")
         nota = conexao.execute("SELECT 1 FROM notes WHERE episode_id = ? LIMIT 1", (episodio_id,)).fetchone()
         if not nota:
             raise HTTPException(status_code=400, detail="Regista o atendimento antes de prescrever")
@@ -563,6 +689,10 @@ def alta_medica(episodio_id: str, usuario: dict = Depends(exigir("medico", "admi
                 "INSERT INTO hygiene_tasks (id, bed_id, estado, criado_em) VALUES (?, ?, 'PENDENTE', ?)",
                 (tarefa_id, leito["id"], db.agora()),
             )
+            conexao.execute(
+                "UPDATE internamentos SET estado = 'ENCERRADO', alta_em = ? WHERE episode_id = ? AND estado = 'ATIVO'",
+                (db.agora(), episodio_id),
+            )
         conexao.execute(
             "UPDATE episodes SET estado = ?, atualizado_em = ? WHERE id = ?",
             ("ALTA_MEDICA_DADA", db.agora(), episodio_id),
@@ -613,9 +743,27 @@ def alocar_leito(
         episodio = obter_episodio(conexao, dados.episodio_id)
         if episodio["estado"] in ESTADOS_FINAIS:
             raise HTTPException(status_code=400, detail="Episodio encerrado")
+        estado = validar_transicao(episodio["estado"], "INTERNADO_ATIVO")
         conexao.execute(
             "UPDATE beds SET estado = 'OCUPADO', paciente_id = ?, episodio_id = ? WHERE id = ?",
             (episodio["patient_id"], episodio["id"], leito_id),
+        )
+        conexao.execute(
+            "UPDATE episodes SET estado = ?, atualizado_em = ? WHERE id = ?",
+            (estado, db.agora(), episodio["id"]),
+        )
+        internamento_id = criar_id("INT")
+        conexao.execute(
+            "INSERT INTO internamentos (id, episode_id, leito_id, motivo, estado, medico_id, criado_em) "
+            "VALUES (?, ?, ?, ?, 'ATIVO', ?, ?)",
+            (
+                internamento_id,
+                episodio["id"],
+                leito_id,
+                dados.motivo.strip(),
+                usuario["id"],
+                db.agora(),
+            ),
         )
         registrar_auditoria(
             conexao,
@@ -625,9 +773,13 @@ def alocar_leito(
             anterior={"estado": leito["estado"]},
             novo={"episodio_id": episodio["id"]},
         )
-        registrar_evento(conexao, "LeitoAlocado", {"leito": leito_id, "episodio_id": episodio["id"]})
+        registrar_evento(
+            conexao,
+            "LeitoAlocado",
+            {"leito": leito_id, "episodio_id": episodio["id"], "internamento_id": internamento_id},
+        )
         conexao.commit()
-    return {"id": leito_id, "estado": "OCUPADO"}
+    return {"id": leito_id, "estado": "OCUPADO", "internamento_id": internamento_id, "episodio_estado": estado}
 
 
 @app.get("/api/higienizacao")
@@ -769,6 +921,18 @@ def dashboard(usuario: dict = Depends(usuario_atual)) -> dict:
             "mdt_pendentes": conexao.execute(
                 "SELECT COUNT(*) AS total FROM mdt_orders WHERE estado IN ('PENDENTE', 'RESULTADO_DISPONIVEL')"
             ).fetchone()["total"],
+            "internamentos_ativos": conexao.execute(
+                "SELECT COUNT(*) AS total FROM internamentos WHERE estado = 'ATIVO'"
+            ).fetchone()["total"],
+            "cirurgias_em_curso": conexao.execute(
+                "SELECT COUNT(*) AS total FROM cirurgias WHERE estado = 'EM_CIRURGIA'"
+            ).fetchone()["total"],
+            "equipamentos_bloqueados": conexao.execute(
+                "SELECT COUNT(*) AS total FROM equipamentos WHERE estado = 'BLOQUEADO'"
+            ).fetchone()["total"],
+            "chamados_abertos": conexao.execute(
+                "SELECT COUNT(*) AS total FROM chamados_manutencao WHERE estado = 'ABERTO'"
+            ).fetchone()["total"],
         }
 
 
@@ -786,6 +950,227 @@ def criar_funcionario(
         registrar_auditoria(conexao, usuario, "FUNCIONARIO_CRIADO", identificador, novo=dados.model_dump())
         conexao.commit()
     return {"id": identificador, "nome": dados.nome.strip()}
+
+
+@app.post("/api/cirurgias", status_code=201)
+def criar_cirurgia(
+    episodio_id: str,
+    dados: CirurgiaModel,
+    usuario: dict = Depends(exigir("medico", "administrador")),
+) -> dict:
+    with conexao_aberta() as conexao:
+        episodio = obter_episodio(conexao, episodio_id)
+        estado = validar_transicao(episodio["estado"], "EM_CIRURGIA")
+        if dados.equipamento_id:
+            equipamento = conexao.execute(
+                "SELECT * FROM equipamentos WHERE id = ?", (dados.equipamento_id,)
+            ).fetchone()
+            hoje = datetime.now(timezone.utc).date().isoformat()
+            if not equipamento or equipamento["estado"] != "ATIVO" or equipamento["proxima_manutencao"] < hoje:
+                criar_alerta(
+                    conexao,
+                    "CRITICO",
+                    f"Equipamento {dados.equipamento_id} indisponivel ou com manutencao vencida",
+                )
+                raise HTTPException(status_code=400, detail="Equipamento indisponivel ou com manutencao vencida")
+        identificador = criar_id("CIR")
+        conexao.execute(
+            "INSERT INTO cirurgias (id, episode_id, descricao, checklist, equipamento_id, estado, criado_por, criado_em) "
+            "VALUES (?, ?, ?, ?, ?, 'EM_CIRURGIA', ?, ?)",
+            (
+                identificador,
+                episodio_id,
+                dados.descricao.strip(),
+                dados.checklist.strip(),
+                dados.equipamento_id,
+                usuario["id"],
+                db.agora(),
+            ),
+        )
+        conexao.execute(
+            "UPDATE episodes SET estado = ?, atualizado_em = ? WHERE id = ?",
+            (estado, db.agora(), episodio_id),
+        )
+        registrar_auditoria(conexao, usuario, "CIRURGIA_INICIADA", identificador, novo={"descricao": dados.descricao})
+        registrar_evento(conexao, "CirurgiaIniciada", {"cirurgia_id": identificador, "episodio_id": episodio_id})
+        conexao.commit()
+    return {"id": identificador, "estado": estado}
+
+
+@app.post("/api/cirurgias/{cirurgia_id}/concluir")
+def concluir_cirurgia(
+    cirurgia_id: str,
+    dados: ConcluirCirurgiaModel,
+    usuario: dict = Depends(exigir("medico", "administrador")),
+) -> dict:
+    destino = dados.destino.strip().upper()
+    if destino not in {"ENFERMARIA", "UCI"}:
+        raise HTTPException(status_code=400, detail="Destino deve ser ENFERMARIA ou UCI")
+    with conexao_aberta() as conexao:
+        cirurgia = conexao.execute("SELECT * FROM cirurgias WHERE id = ?", (cirurgia_id,)).fetchone()
+        if not cirurgia:
+            raise HTTPException(status_code=404, detail="Cirurgia nao encontrada")
+        if cirurgia["estado"] != "EM_CIRURGIA":
+            raise HTTPException(status_code=400, detail="Cirurgia ja concluida")
+        episodio = obter_episodio(conexao, cirurgia["episode_id"])
+        estado = validar_transicao(episodio["estado"], "INTERNADO_ATIVO")
+        leito = None
+        if destino == "UCI":
+            leito = conexao.execute(
+                "SELECT * FROM beds WHERE unidade = 'UCI' AND estado = 'LIVRE' ORDER BY codigo LIMIT 1"
+            ).fetchone()
+            if not leito:
+                raise HTTPException(status_code=409, detail="Sem leito de UCI disponivel")
+            conexao.execute(
+                "UPDATE beds SET estado = 'OCUPADO', paciente_id = ?, episodio_id = ? WHERE id = ?",
+                (episodio["patient_id"], episodio["id"], leito["id"]),
+            )
+            conexao.execute(
+                "UPDATE internamentos SET leito_id = ? WHERE episode_id = ? AND estado = 'ATIVO'",
+                (leito["id"], episodio["id"]),
+            )
+        conexao.execute("UPDATE cirurgias SET estado = 'CONCLUIDA' WHERE id = ?", (cirurgia_id,))
+        conexao.execute(
+            "UPDATE episodes SET estado = ?, atualizado_em = ? WHERE id = ?",
+            (estado, db.agora(), episodio["id"]),
+        )
+        registrar_auditoria(conexao, usuario, "CIRURGIA_CONCLUIDA", cirurgia_id, novo={"destino": destino})
+        registrar_evento(
+            conexao,
+            "CirurgiaConcluida",
+            {"cirurgia_id": cirurgia_id, "destino": destino, "leito": leito["id"] if leito else None},
+        )
+        conexao.commit()
+    return {"id": cirurgia_id, "estado": estado, "destino": destino}
+
+
+@app.get("/api/cirurgias")
+def listar_cirurgias(usuario: dict = Depends(exigir("medico", "enfermeiro", "gestor", "auditoria", "administrador"))) -> list[dict]:
+    with conexao_aberta() as conexao:
+        return em_lista(conexao.execute("SELECT * FROM cirurgias ORDER BY criado_em DESC").fetchall())
+
+
+@app.post("/api/esterilizacoes", status_code=201)
+def criar_esterilizacao(
+    dados: EsterilizacaoModel,
+    usuario: dict = Depends(exigir("enfermeiro", "farmacia", "logistica", "administrador")),
+) -> dict:
+    identificador = criar_id("EST")
+    with conexao_aberta() as conexao:
+        conexao.execute(
+            "INSERT INTO esterilizacoes "
+            "(id, lote, descricao, esterilizado_em, validade, indicador_biologico, responsavel_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                identificador,
+                dados.lote.strip(),
+                dados.descricao.strip(),
+                dados.esterilizado_em,
+                dados.validade,
+                dados.indicador_biologico.strip(),
+                usuario["id"],
+            ),
+        )
+        registrar_auditoria(conexao, usuario, "ESTERILIZACAO_REGISTADA", identificador, novo={"lote": dados.lote})
+        registrar_evento(conexao, "LoteEsterilizado", {"lote": dados.lote, "validade": dados.validade})
+        conexao.commit()
+    return {"id": identificador, "lote": dados.lote, "estado": "VALIDADO"}
+
+
+@app.get("/api/esterilizacoes")
+def listar_esterilizacoes(usuario: dict = Depends(usuario_atual)) -> list[dict]:
+    with conexao_aberta() as conexao:
+        return em_lista(conexao.execute("SELECT * FROM esterilizacoes ORDER BY esterilizado_em DESC").fetchall())
+
+
+@app.post("/api/equipamentos", status_code=201)
+def criar_equipamento(
+    dados: EquipamentoModel,
+    usuario: dict = Depends(exigir("gestor", "administrador")),
+) -> dict:
+    with conexao_aberta() as conexao:
+        conexao.execute(
+            "INSERT INTO equipamentos (id, codigo, descricao, unidade, proxima_manutencao, estado) "
+            "VALUES (?, ?, ?, ?, ?, 'ATIVO')",
+            (
+                dados.codigo,
+                dados.codigo,
+                dados.descricao.strip(),
+                dados.unidade.strip(),
+                dados.proxima_manutencao,
+            ),
+        )
+        registrar_auditoria(conexao, usuario, "EQUIPAMENTO_CRIADO", dados.codigo, novo={"unidade": dados.unidade})
+        conexao.commit()
+    return {"id": dados.codigo, "estado": "ATIVO"}
+
+
+@app.get("/api/equipamentos")
+def listar_equipamentos(usuario: dict = Depends(usuario_atual)) -> list[dict]:
+    with conexao_aberta() as conexao:
+        return em_lista(conexao.execute("SELECT * FROM equipamentos ORDER BY codigo").fetchall())
+
+
+@app.post("/api/manutencao/chamados", status_code=201)
+def criar_chamado(
+    dados: ChamadoModel,
+    usuario: dict = Depends(usuario_atual),
+) -> dict:
+    prioridade = dados.prioridade.strip().upper()
+    horas = {"CRITICA": 2, "ALTA": 24, "NORMAL": 72}
+    if prioridade not in horas:
+        raise HTTPException(status_code=400, detail="Prioridade deve ser CRITICA, ALTA ou NORMAL")
+    identificador = criar_id("MAN")
+    sla = (datetime.now(timezone.utc) + timedelta(hours=horas[prioridade])).isoformat(timespec="seconds")
+    with conexao_aberta() as conexao:
+        equipamento = conexao.execute("SELECT * FROM equipamentos WHERE id = ?", (dados.equipamento_id,)).fetchone()
+        if not equipamento:
+            raise HTTPException(status_code=404, detail="Equipamento nao encontrado")
+        conexao.execute(
+            "INSERT INTO chamados_manutencao "
+            "(id, equipamento_id, descricao, prioridade, estado, sla, criado_por, criado_em) "
+            "VALUES (?, ?, ?, ?, 'ABERTO', ?, ?, ?)",
+            (
+                identificador,
+                dados.equipamento_id,
+                dados.descricao.strip(),
+                prioridade,
+                sla,
+                usuario["id"],
+                db.agora(),
+            ),
+        )
+        if prioridade == "CRITICA":
+            criar_alerta(conexao, "CRITICO", f"Chamado critico {identificador} para {dados.equipamento_id}")
+        registrar_auditoria(conexao, usuario, "CHAMADO_CRIADO", identificador, novo={"prioridade": prioridade})
+        registrar_evento(conexao, "ChamadoManutencaoCriado", {"chamado_id": identificador, "sla": sla})
+        conexao.commit()
+    return {"id": identificador, "estado": "ABERTO", "sla": sla}
+
+
+@app.post("/api/manutencao/chamados/{chamado_id}/concluir")
+def concluir_chamado(chamado_id: str, usuario: dict = Depends(exigir("gestor", "administrador"))) -> dict:
+    with conexao_aberta() as conexao:
+        chamado = conexao.execute("SELECT * FROM chamados_manutencao WHERE id = ?", (chamado_id,)).fetchone()
+        if not chamado:
+            raise HTTPException(status_code=404, detail="Chamado nao encontrado")
+        if chamado["estado"] != "ABERTO":
+            raise HTTPException(status_code=400, detail="Chamado ja concluido")
+        conexao.execute(
+            "UPDATE chamados_manutencao SET estado = 'CONCLUIDO', concluido_em = ? WHERE id = ?",
+            (db.agora(), chamado_id),
+        )
+        conexao.execute("UPDATE equipamentos SET estado = 'ATIVO' WHERE id = ?", (chamado["equipamento_id"],))
+        registrar_auditoria(conexao, usuario, "CHAMADO_CONCLUIDO", chamado_id)
+        registrar_evento(conexao, "ChamadoManutencaoConcluido", {"chamado_id": chamado_id})
+        conexao.commit()
+    return {"id": chamado_id, "estado": "CONCLUIDO"}
+
+
+@app.get("/api/manutencao/chamados")
+def listar_chamados(usuario: dict = Depends(usuario_atual)) -> list[dict]:
+    with conexao_aberta() as conexao:
+        return em_lista(conexao.execute("SELECT * FROM chamados_manutencao ORDER BY criado_em DESC").fetchall())
 
 
 @app.get("/api/rh/funcionarios")
