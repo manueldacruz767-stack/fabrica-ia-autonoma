@@ -78,3 +78,26 @@ pre {
   border-radius: 8px;
   padding: 12px;
 }
+
+.manchester-VERMELHO { color: #ff7b72; border-left: 4px solid #D32F2F; padding-left: 8px; }
+.manchester-LARANJA { color: #ffa657; border-left: 4px solid #F57C00; padding-left: 8px; }
+.manchester-AMARELO { color: #e3b341; border-left: 4px solid #FBC02D; padding-left: 8px; }
+.manchester-VERDE { color: #56d364; border-left: 4px solid #388E3C; padding-left: 8px; }
+.manchester-AZUL { color: #79c0ff; border-left: 4px solid #1976D2; padding-left: 8px; }
+
+.painel-chamadas {
+  min-height: 160px;
+  display: grid;
+  place-items: center;
+  background: #010409;
+  border: 1px solid #58a6ff;
+  border-radius: 12px;
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.painel-chamadas .vazio { font-size: 1rem; letter-spacing: normal; }
+
+#breadcrumb { margin-top: 4px; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid #58a6ff; }

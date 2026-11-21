@@ -10,7 +10,8 @@
   <header>
     <div>
       <h1>HIS - Hospital Publico</h1>
-      <p>MVP operacional: urgencia, triagem, prescricao, stock, leitos e auditoria.</p>
+      <p>HIS operacional: assistencial, logistico, governacao e observabilidade.</p>
+      <p id="breadcrumb" class="nota"></p>
     </div>
     <div id="sessao"></div>
   </header>
@@ -93,6 +94,9 @@
         <select id="preEpisodio" required></select>
         <input id="preMedicamento" placeholder="Medicamento" required>
         <input id="preDose" placeholder="Dose (ex.: 500mg)" required>
+        <input id="preHorarios" placeholder="Horarios (08:00,14:00,20:00)">
+        <input id="preDieta" placeholder="Dieta (ex.: dieta leve)">
+        <input id="preJustificacao" placeholder="Justificacao se houver risco de alergia">
         <button type="submit">Prescrever</button>
       </form>
       <div class="linha-form">
@@ -160,6 +164,7 @@
         <input id="cirDescricao" placeholder="Procedimento" required>
         <input id="cirChecklist" placeholder="Checklist de cirurgia segura" required>
         <select id="cirEquipamento"></select>
+        <select id="cirLote"></select>
         <button type="submit">Iniciar cirurgia</button>
       </form>
       <div class="linha-form">
@@ -260,7 +265,12 @@
         <input id="orcTotal" type="number" min="0.01" step="0.01" placeholder="Novo total" required>
         <button type="submit">Atualizar orcamento</button>
       </form>
+      <div class="linha-form">
+        <select id="ordRequisicao"></select>
+        <button id="botaoOrdemPagamento" type="button">Emitir ordem de pagamento assinada</button>
+      </div>
       <div id="tabelaEmpenhos"></div>
+      <div id="tabelaOrdensPagamento"></div>
     </section>
 
     <section id="mdt" class="secao" hidden>
@@ -269,6 +279,7 @@
         <select id="mdtEpisodio" required></select>
         <select id="mdtTipo"><option>LABORATORIO</option><option>IMAGEM</option><option>FISIOTERAPIA</option></select>
         <input id="mdtDescricao" placeholder="Descricao do pedido" required>
+        <input id="mdtParametros" placeholder="Parametros: Hemoglobina=13.5|g/dL|12-16|NORMAL">
         <button type="submit">Pedir exame ou sessao</button>
       </form>
       <div class="linha-form">
@@ -276,7 +287,10 @@
         <input id="mdtResultado" placeholder="Resultado ou evolucao">
         <button id="botaoResultadoMdt" type="button">Registar resultado</button>
         <button id="botaoValidarMdt" type="button">Validar resultado</button>
+        <button id="botaoExportarHl7" type="button">Exportar HL7</button>
+        <button id="botaoExportarFhir" type="button">Exportar FHIR</button>
       </div>
+      <pre id="mdtExportado"></pre>
       <div id="tabelaPedidosMdt"></div>
     </section>
 
@@ -340,6 +354,21 @@
         <input id="obiData" type="datetime-local" required>
         <button type="submit">Registar obito</button>
       </form>
+      <h3>Seguranca do doente</h3>
+      <form id="formAlergia" class="linha-form">
+        <select id="alePaciente" required></select>
+        <input id="aleSubstancia" placeholder="Substancia" required>
+        <input id="aleReacao" placeholder="Reacao" required>
+        <button type="submit">Registar alergia</button>
+      </form>
+      <div id="tabelaAlergias"></div>
+      <h3>Aprazamentos e nutricao</h3>
+      <div class="linha-form">
+        <select id="aprPrescricao"></select>
+        <button id="botaoVerAprazamentos" type="button">Ver aprazamentos</button>
+      </div>
+      <div id="listaAprazamentos"></div>
+      <div id="tabelaDietas"></div>
     </section>
 
     <section id="logistica" class="secao" hidden>
@@ -378,9 +407,29 @@
         <select id="selProposta"></select>
         <button id="botaoSelecionarProposta" type="button">Selecionar proposta</button>
       </div>
+      <form id="formGuia" class="linha-form">
+        <input id="guiDestino" placeholder="Unidade destino" value="FARM" required>
+        <input id="guiItem" placeholder="Item" required>
+        <input id="guiQuantidade" type="number" min="1" placeholder="Quantidade" required>
+        <button type="submit">Criar guia de remessa assinada</button>
+      </form>
+      <form id="formConcurso" class="linha-form">
+        <select id="conCotacao"></select>
+        <input id="conNumero" placeholder="Numero do concurso" required>
+        <button type="submit">Abrir concurso</button>
+      </form>
+      <form id="formOrdemFornecimento" class="linha-form">
+        <select id="ofeRequisicao"></select>
+        <input id="ofeDescricao" placeholder="Descricao" required>
+        <input id="ofeQuantidade" type="number" min="1" placeholder="Quantidade" required>
+        <button type="submit">Emitir ordem de fornecimento</button>
+      </form>
       <div id="tabelaStockSetorial"></div>
       <div id="tabelaContratos"></div>
       <div id="tabelaCotacoes"></div>
+      <div id="tabelaGuias"></div>
+      <div id="tabelaConcursos"></div>
+      <div id="tabelaOrdensFornecimento"></div>
     </section>
 
     <section id="rhAdmin" class="secao" hidden>
@@ -399,8 +448,28 @@
         <input id="ptoSaida" placeholder="Saida">
         <button type="submit">Registar ponto</button>
       </form>
+      <form id="formContratoTrabalho" class="linha-form">
+        <select id="ctFuncionario"></select>
+        <input id="ctTipo" placeholder="Tipo de contrato" required>
+        <input id="ctInicio" type="date" required>
+        <input id="ctFim" type="date">
+        <input id="ctSalario" type="number" min="0.01" step="0.01" placeholder="Salario base" required>
+        <button type="submit">Criar contrato de trabalho</button>
+      </form>
+      <div class="linha-form">
+        <select id="folProcessar"></select>
+        <button id="botaoProcessarFolha" type="button">Processar com faltas e contrato</button>
+        <button id="botaoRecibo" type="button">Ver recibo</button>
+      </div>
+      <form id="formServicoGeral" class="linha-form">
+        <select id="srvArea"><option>LAVANDARIA</option><option>COZINHA</option><option>SEGURANCA</option><option>TI</option><option>LIMPEZA</option></select>
+        <input id="srvDescricao" placeholder="Descricao do servico" required>
+        <button type="submit">Abrir pedido de servico</button>
+      </form>
       <div id="tabelaFolhas"></div>
       <div id="tabelaPonto"></div>
+      <div id="tabelaContratosTrabalho"></div>
+      <div id="tabelaServicos"></div>
     </section>
 
     <section id="governa" class="secao" hidden>
@@ -416,6 +485,13 @@
         <button type="submit">Assinar documento</button>
       </form>
       <div id="tabelaDocumentos"></div>
+      <h3>BI e exportacao para auditoria externa</h3>
+      <div class="linha-form">
+        <button id="botaoIndicadoresBi" type="button">Atualizar indicadores</button>
+        <button id="botaoExportarAuditoria" type="button">Exportar auditoria</button>
+      </div>
+      <pre id="biResumo"></pre>
+      <pre id="auditoriaExportada"></pre>
     </section>
 
     <section id="observabilidade" class="secao" hidden>
@@ -423,6 +499,12 @@
       <div id="estadoSaude"></div>
       <pre id="metricasResumo"></pre>
       <button id="botaoPublicarEventos" type="button">Publicar eventos pendentes</button>
+      <h3>Painel de chamadas em tempo real</h3>
+      <div class="linha-form">
+        <select id="senhaChamar"></select>
+        <button id="botaoChamarSenha" type="button">Chamar senha</button>
+      </div>
+      <div id="painelChamadas" class="painel-chamadas"><span class="vazio">Sem chamadas</span></div>
     </section>
 
     <section id="auditoria" class="secao" hidden>

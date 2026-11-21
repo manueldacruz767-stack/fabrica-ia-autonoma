@@ -623,6 +623,125 @@ def inicializar() -> None:
                 destinatario TEXT NOT NULL,
                 criado_em TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS aprazamentos (
+                id TEXT PRIMARY KEY,
+                prescricao_id TEXT NOT NULL REFERENCES prescriptions(id),
+                horario TEXT NOT NULL,
+                estado TEXT NOT NULL,
+                administrado_por TEXT REFERENCES users(id),
+                administrado_em TEXT,
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS alergias (
+                id TEXT PRIMARY KEY,
+                patient_id TEXT NOT NULL REFERENCES patients(id),
+                substancia TEXT NOT NULL,
+                reacao TEXT NOT NULL,
+                registado_por TEXT NOT NULL REFERENCES users(id),
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS nutricao_dietas (
+                id TEXT PRIMARY KEY,
+                episode_id TEXT NOT NULL REFERENCES episodes(id),
+                dieta TEXT NOT NULL,
+                observacao TEXT,
+                prescrita_por TEXT NOT NULL REFERENCES users(id),
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS mdt_parametros (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pedido_id TEXT NOT NULL REFERENCES mdt_orders(id),
+                parametro TEXT NOT NULL,
+                valor TEXT NOT NULL,
+                unidade TEXT,
+                valor_referencia TEXT,
+                criticidade TEXT NOT NULL DEFAULT 'NORMAL'
+            );
+
+            CREATE TABLE IF NOT EXISTS guias_remessa (
+                id TEXT PRIMARY KEY,
+                unidade_origem TEXT NOT NULL REFERENCES unidades_organizacionais(codigo),
+                unidade_destino TEXT NOT NULL REFERENCES unidades_organizacionais(codigo),
+                item TEXT NOT NULL,
+                quantidade INTEGER NOT NULL,
+                estado TEXT NOT NULL,
+                criado_por TEXT NOT NULL REFERENCES users(id),
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS concursos (
+                id TEXT PRIMARY KEY,
+                cotacao_id TEXT NOT NULL REFERENCES cotacoes(id),
+                numero TEXT NOT NULL,
+                estado TEXT NOT NULL,
+                criado_por TEXT NOT NULL REFERENCES users(id),
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS ordens_pagamento (
+                id TEXT PRIMARY KEY,
+                purchase_id TEXT NOT NULL REFERENCES purchase_requests(id),
+                fornecedor TEXT NOT NULL,
+                valor REAL NOT NULL,
+                estado TEXT NOT NULL,
+                aprovado_por TEXT REFERENCES users(id),
+                criado_por TEXT NOT NULL REFERENCES users(id),
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS ordens_fornecimento (
+                id TEXT PRIMARY KEY,
+                purchase_id TEXT NOT NULL REFERENCES purchase_requests(id),
+                fornecedor TEXT NOT NULL,
+                descricao TEXT NOT NULL,
+                quantidade INTEGER NOT NULL,
+                estado TEXT NOT NULL,
+                criado_por TEXT NOT NULL REFERENCES users(id),
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS contratos_trabalho (
+                id TEXT PRIMARY KEY,
+                staff_id TEXT NOT NULL REFERENCES staff(id),
+                tipo TEXT NOT NULL,
+                inicio TEXT NOT NULL,
+                fim TEXT,
+                salario_base REAL NOT NULL,
+                estado TEXT NOT NULL,
+                criado_por TEXT NOT NULL REFERENCES users(id),
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS servicos_gerais (
+                id TEXT PRIMARY KEY,
+                area TEXT NOT NULL,
+                descricao TEXT NOT NULL,
+                estado TEXT NOT NULL,
+                criado_por TEXT NOT NULL REFERENCES users(id),
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS painel_senhas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                consulta_id TEXT NOT NULL REFERENCES consultas_agendadas(id),
+                senha TEXT NOT NULL,
+                estado TEXT NOT NULL,
+                chamada_em TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS registos_bi (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                origem TEXT NOT NULL,
+                chave TEXT NOT NULL,
+                unidade_codigo TEXT,
+                perfil TEXT,
+                dados TEXT NOT NULL,
+                criado_em TEXT NOT NULL
+            );
             """
         )
 
@@ -635,6 +754,18 @@ def inicializar() -> None:
             ("outbox", "tentativas", "INTEGER NOT NULL DEFAULT 0"),
             ("outbox", "publicado_em", "TEXT"),
             ("outbox", "ultimo_erro", "TEXT"),
+            ("prescriptions", "validade", "TEXT"),
+            ("prescriptions", "risco_aceite", "INTEGER NOT NULL DEFAULT 0"),
+            ("prescriptions", "justificacao_risco", "TEXT"),
+            ("prescriptions", "alergia_verificada", "INTEGER NOT NULL DEFAULT 0"),
+            ("cirurgias", "lote_id", "TEXT"),
+            ("mdt_orders", "parametros", "TEXT"),
+            ("mdt_orders", "assinatura", "TEXT"),
+            ("mdt_orders", "hl7", "TEXT"),
+            ("mdt_orders", "fhir", "TEXT"),
+            ("cotacoes", "concurso_id", "TEXT"),
+            ("episodes", "unidade_codigo", "TEXT"),
+            ("purchase_requests", "fornecedor", "TEXT"),
         ):
             colunas = {linha["name"] for linha in conexao.execute(f"PRAGMA table_info({tabela})")}
             if coluna not in colunas:

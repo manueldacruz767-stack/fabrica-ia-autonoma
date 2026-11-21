@@ -173,6 +173,46 @@ def assinar_documento(conexao, usuario: dict, tipo: str, referencia_id: str, con
     return {"id": documento_id, "hash": hash_documento, "assinatura": assinatura, "criado_em": criado_em}
 
 
+def registrar_bi(conexao, origem: str, chave: str, dados: Any, usuario: dict) -> None:
+    conexao.execute(
+        "INSERT INTO registos_bi (origem, chave, unidade_codigo, perfil, dados, criado_em) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            origem,
+            chave,
+            usuario.get("unidade_codigo"),
+            usuario.get("perfil"),
+            json.dumps(dados, sort_keys=True, default=str),
+            db.agora(),
+        ),
+    )
+
+
+def episodio_permitido(conexao, usuario: dict, episodio_id: str) -> bool:
+    perfis_clinicos = {
+        "administrador",
+        "auditoria",
+        "medico",
+        "enfermeiro",
+        "rececionista",
+        "laboratorio",
+        "imagiologia",
+        "fisioterapia",
+        "farmacia",
+        "nutricionista",
+        "transportes",
+        "comissao_etica",
+    }
+    if usuario.get("perfil") in perfis_clinicos:
+        return True
+    linha = conexao.execute(
+        "SELECT unidade_codigo FROM episodes WHERE id = ?", (episodio_id,)
+    ).fetchone()
+    if not linha or not linha["unidade_codigo"]:
+        return True
+    return unidade_permitida(usuario, linha["unidade_codigo"])
+
+
 def unidade_permitida(usuario: dict, unidade_codigo: str | None) -> bool:
     if not unidade_codigo:
         return True

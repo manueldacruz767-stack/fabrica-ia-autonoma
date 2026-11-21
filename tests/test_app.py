@@ -2,6 +2,7 @@ import os
 import tempfile
 import unittest
 import uuid
+from datetime import date, timedelta
 
 DIRETORIO_TESTE = tempfile.mkdtemp(prefix="his-test-")
 os.environ["HIS_DB_PATH"] = os.path.join(DIRETORIO_TESTE, "his.db")
@@ -909,6 +910,288 @@ class TestesGovernaDocumentosEServicos(unittest.TestCase):
             headers=self.cabecalho(rh),
             json={"funcionario": "enfermeiro", "data": "2027-01-10", "entrada": "08:00", "saida": "17:00"},
         ).status_code, 201)
+
+
+class TestesFechamentoFinal(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.cliente = TestClient(app)
+
+    def token(self, username: str, senha: str) -> str:
+        resposta = self.cliente.post("/api/auth/login", json={"username": username, "password": senha})
+        self.assertEqual(resposta.status_code, 200, resposta.text)
+        return resposta.json()["token"]
+
+    def cabecalho(self, token: str) -> dict:
+        return {"Authorization": f"Bearer {token}"}
+
+    def novo_episodio(self, admin: str) -> tuple[str, str]:
+        enfermeiro = self.token("enfermeiro", "enfermeiro123")
+        medico = self.token("medico", "medico123")
+        paciente = self.cliente.post(
+            "/api/pacientes",
+            headers=self.cabecalho(admin),
+            json={"nome": "Paciente Final", "desconhecido": False},
+        ).json()["id"]
+        episodio = self.cliente.post(
+            "/api/episodios",
+            headers=self.cabecalho(enfermeiro),
+            json={"paciente_id": paciente, "tipo": "URGENCIA"},
+        ).json()["id"]
+        triagem = self.cliente.post(
+            f"/api/episodios/{episodio}/triagem",
+            headers=self.cabecalho(enfermeiro),
+            json={"queixa": "Dor toracica", "sinais_vitais": "PA 120/80", "cor": "AMARELO"},
+        )
+        self.assertEqual(triagem.status_code, 200, triagem.text)
+        atendimento = self.cliente.post(
+            f"/api/episodios/{episodio}/atendimento",
+            headers=self.cabecalho(medico),
+            json={"anamnese": "Dor toracica", "hipotese": "Investigar"},
+        )
+        self.assertEqual(atendimento.status_code, 200, atendimento.text)
+        return paciente, episodio
+
+    def test_alergia_aprazamento_e_dieta(self):
+        admin = self.token("admin", "admin123")
+        medico = self.token("medico", "medico123")
+        enfermeiro = self.token("enfermeiro", "enfermeiro123")
+        paciente, episodio = self.novo_episodio(admin)
+
+        alergia = self.cliente.post(
+            f"/api/pacientes/{paciente}/alergias",
+            headers=self.cabecalho(medico),
+            json={"substancia": "Paracetamol", "reacao": "Exantema"},
+        )
+        self.assertEqual(alergia.status_code, 201, alergia.text)
+
+        sem_justificacao = self.cliente.post(
+            f"/api/episodios/{episodio}/prescricoes",
+            headers=self.cabecalho(medico),
+            json={"medicamento": "Paracetamol 500mg", "dose": "500mg"},
+        )
+        self.assertEqual(sem_justificacao.status_code, 409)
+
+        com_justificacao = self.cliente.post(
+            f"/api/episodios/{episodio}/prescricoes",
+            headers=self.cabecalho(medico),
+            json={
+                "medicamento": "Paracetamol 500mg",
+                "dose": "500mg",
+                "justificacao_risco": "Beneficio superior ao risco, vigilancia apertada",
+                "horarios": ["08:00", "14:00", "20:00"],
+                "dieta": "Dieta leve",
+            },
+        )
+        self.assertEqual(com_justificacao.status_code, 201, com_justificacao.text)
+        self.assertTrue(com_justificacao.json()["risco_aceite"])
+        prescricao_id = com_justificacao.json()["id"]
+
+        aprazamentos = self.cliente.get(
+            f"/api/prescricoes/{prescricao_id}/aprazamentos", headers=self.cabecalho(enfermeiro)
+        ).json()
+        self.assertEqual(len(aprazamentos), 3)
+        administrado = self.cliente.post(
+            f"/api/aprazamentos/{aprazamentos[0]['id']}/administrar", headers=self.cabecalho(enfermeiro)
+        )
+        self.assertEqual(administrado.status_code, 200, administrado.text)
+        dietas = self.cliente.get(
+            f"/api/episodios/{episodio}/nutricao", headers=self.cabecalho(enfermeiro)
+        ).json()
+        self.assertEqual(dietas[0]["dieta"], "Dieta leve")
+
+    def test_mdt_estruturado_e_exportacao(self):
+        admin = self.token("admin", "admin123")
+        medico = self.token("medico", "medico123")
+        laboratorio = self.token("laboratorio", "laboratorio123")
+        _paciente, episodio = self.novo_episodio(admin)
+
+        pedido = self.cliente.post(
+            "/api/mdt/pedidos",
+            headers=self.cabecalho(medico),
+            json={
+                "episodio_id": episodio,
+                "tipo": "LABORATORIO",
+                "descricao": "Hemograma",
+                "parametros": [{
+                    "parametro": "Hemoglobina",
+                    "valor": "13.5",
+                    "unidade": "g/dL",
+                    "valor_referencia": "12-16",
+                    "criticidade": "CRITICO",
+                }],
+            },
+        )
+        self.assertEqual(pedido.status_code, 201, pedido.text)
+        pedido_id = pedido.json()["id"]
+
+        resultado = self.cliente.post(
+            f"/api/mdt/pedidos/{pedido_id}/resultado",
+            headers=self.cabecalho(laboratorio),
+            json={"resultado": "Hemograma sem alteracoes"},
+        )
+        self.assertEqual(resultado.status_code, 200, resultado.text)
+
+        hl7 = self.cliente.get(
+            f"/api/mdt/pedidos/{pedido_id}/exportar?formato=HL7", headers=self.cabecalho(medico)
+        ).json()
+        self.assertIn("OBX", hl7["conteudo"])
+        fhir = self.cliente.get(
+            f"/api/mdt/pedidos/{pedido_id}/exportar?formato=FHIR", headers=self.cabecalho(medico)
+        ).json()
+        self.assertEqual(fhir["conteudo"]["resourceType"], "DiagnosticReport")
+        documentos = self.cliente.get("/api/documentos/assinados", headers=self.cabecalho(admin)).json()
+        self.assertTrue(any(documento["tipo_documento"] == "LAUDO_MDT" for documento in documentos))
+
+    def test_cirurgia_bloqueia_lote_vencido(self):
+        admin = self.token("admin", "admin123")
+        medico = self.token("medico", "medico123")
+        enfermeiro = self.token("enfermeiro", "enfermeiro123")
+        gestor = self.token("gestor", "gestor123")
+        _paciente, episodio = self.novo_episodio(admin)
+
+        leitos = self.cliente.get("/api/leitos", headers=self.cabecalho(admin)).json()
+        leito = next(leito for leito in leitos if leito["estado"] == "LIVRE")
+        self.assertEqual(self.cliente.post(
+            f"/api/leitos/{leito['id']}/alocar",
+            headers=self.cabecalho(gestor),
+            json={"episodio_id": episodio, "motivo": "Observacao clinica"},
+        ).status_code, 200)
+
+        vencido = (date.today() - timedelta(days=1)).isoformat()
+        lote = self.cliente.post(
+            "/api/esterilizacoes",
+            headers=self.cabecalho(enfermeiro),
+            json={
+                "lote": "LOTE-VENCIDO",
+                "descricao": "Kit cirurgico",
+                "esterilizado_em": (date.today() - timedelta(days=30)).isoformat(),
+                "validade": vencido,
+                "indicador_biologico": "NEGATIVO",
+            },
+        ).json()["id"]
+
+        cirurgia = self.cliente.post(
+            f"/api/cirurgias?episodio_id={episodio}",
+            headers=self.cabecalho(medico),
+            json={"descricao": "Procedimento", "checklist": "Checklist conforme", "lote_id": lote},
+        )
+        self.assertEqual(cirurgia.status_code, 400, cirurgia.text)
+
+    def test_logistica_compras_rh_bi_e_painel(self):
+        admin = self.token("admin", "admin123")
+        logistica = self.token("logistica", "logistica123")
+        compras = self.token("compras", "compras123")
+        financeiro = self.token("financeiro", "financeiro123")
+        gestor = self.token("gestor", "gestor123")
+        enfermeiro = self.token("enfermeiro", "enfermeiro123")
+        rh = self.token("rh", "rh123")
+        auditoria = self.token("auditor", "auditor123")
+        rececionista = self.token("rececionista", "rececionista123")
+
+        guia = self.cliente.post(
+            "/api/logistica/guias-remessa",
+            headers=self.cabecalho(logistica),
+            json={"unidade_destino": "LOG", "item": "Soro", "quantidade": 5},
+        )
+        self.assertEqual(guia.status_code, 201, guia.text)
+
+        requisicao = self.cliente.post(
+            "/api/compras/requisicoes",
+            headers=self.cabecalho(compras),
+            json={"descricao": "Material", "quantidade": 10, "valor": 1000, "unidade": "Urgencia"},
+        ).json()["id"]
+        self.assertEqual(self.cliente.post(
+            f"/api/compras/requisicoes/{requisicao}/validar-tecnica",
+            headers=self.cabecalho(enfermeiro),
+            json={"parecer": "Necessario", "aprovado": True},
+        ).status_code, 200)
+        self.assertEqual(self.cliente.post(
+            f"/api/compras/requisicoes/{requisicao}/verificar-orcamento", headers=self.cabecalho(financeiro)
+        ).status_code, 200)
+        self.assertEqual(self.cliente.post(
+            f"/api/compras/requisicoes/{requisicao}/aprovar", headers=self.cabecalho(gestor)
+        ).status_code, 200)
+
+        ordem = self.cliente.post(
+            "/api/financeiro/ordens-pagamento",
+            headers=self.cabecalho(financeiro),
+            json={"purchase_id": requisicao},
+        )
+        self.assertEqual(ordem.status_code, 201, ordem.text)
+
+        cotacao = self.cliente.post(
+            "/api/cotacoes",
+            headers=self.cabecalho(compras),
+            json={"descricao": "Concurso material", "quantidade": 10, "estimativa": 900},
+        ).json()["id"]
+        self.cliente.post(
+            f"/api/cotacoes/{cotacao}/propostas",
+            headers=self.cabecalho(compras),
+            json={"fornecedor": "Fornecedor A", "valor": 800, "prazo": "5 dias"},
+        )
+        self.cliente.post(
+            f"/api/cotacoes/{cotacao}/propostas",
+            headers=self.cabecalho(compras),
+            json={"fornecedor": "Fornecedor B", "valor": 850, "prazo": "4 dias"},
+        )
+        concurso = self.cliente.post(
+            "/api/compras/concursos",
+            headers=self.cabecalho(compras),
+            json={"cotacao_id": cotacao, "numero": "CP-2026-01"},
+        ).json()["id"]
+        self.assertEqual(self.cliente.post(
+            f"/api/compras/concursos/{concurso}/encerrar", headers=self.cabecalho(compras)
+        ).status_code, 200)
+
+        contrato = self.cliente.post(
+            "/api/rh/contratos-trabalho",
+            headers=self.cabecalho(rh),
+            json={
+                "staff_id": "enfermeiro",
+                "tipo": "EFETIVO",
+                "inicio": "2026-01-01",
+                "salario_base": 2200,
+            },
+        )
+        self.assertEqual(contrato.status_code, 201, contrato.text)
+        folha = self.cliente.post(
+            "/api/rh/folhas-salario",
+            headers=self.cabecalho(rh),
+            json={"funcionario": "Enf. Maria Costa", "mes": "2026-01", "salario_base": 2000, "descontos": 100},
+        ).json()["id"]
+        processada = self.cliente.post(
+            f"/api/folhas-salario/{folha}/processar", headers=self.cabecalho(rh)
+        )
+        self.assertEqual(processada.status_code, 200, processada.text)
+        self.assertEqual(processada.json()["salario_base"], 2200)
+
+        servico = self.cliente.post(
+            "/api/servicos-gerais",
+            headers=self.cabecalho(logistica),
+            json={"area": "LAVANDARIA", "descricao": "Reposicao de roupa"},
+        )
+        self.assertEqual(servico.status_code, 201, servico.text)
+        self.assertEqual(self.cliente.get("/api/bi/indicadores", headers=self.cabecalho(gestor)).status_code, 200)
+        self.assertEqual(self.cliente.get("/api/auditoria/exportar?formato=csv", headers=self.cabecalho(auditoria)).status_code, 200)
+
+        paciente = self.cliente.post(
+            "/api/pacientes",
+            headers=self.cabecalho(admin),
+            json={"nome": "Paciente Senha", "desconhecido": False},
+        ).json()["id"]
+        consulta = self.cliente.post(
+            "/api/consultas",
+            headers=self.cabecalho(rececionista),
+            json={"patient_id": paciente, "especialidade": "Clinica Geral", "data_hora": "2026-11-22T10:00:00"},
+        )
+        self.assertEqual(consulta.status_code, 201, consulta.text)
+        senhas = self.cliente.get("/api/painel/senhas", headers=self.cabecalho(rececionista)).json()
+        self.assertTrue(any(senha["senha"].startswith("C") for senha in senhas))
+        senha_id = next(senha["id"] for senha in senhas if senha["estado"] == "AGUARDANDO")
+        self.assertEqual(self.cliente.post(
+            f"/api/painel/chamar?senha_id={senha_id}", headers=self.cabecalho(rececionista)
+        ).status_code, 200)
 
 
 if __name__ == "__main__":

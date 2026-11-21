@@ -33,7 +33,11 @@ function renderizar(id, colunas, linhas) {
   }
   const cabecalho = colunas.map((coluna) => `<th>${escapeHtml(coluna.titulo)}</th>`).join("");
   const corpo = linhas.map((linha) => (
-    "<tr>" + colunas.map((coluna) => `<td>${escapeHtml(linha[coluna.chave])}</td>`).join("") + "</tr>"
+    "<tr>" + colunas.map((coluna) => {
+      const valor = escapeHtml(linha[coluna.chave]);
+      const classe = coluna.classeCss ? ` class="${escapeHtml(coluna.classeCss(linha))}"` : "";
+      return `<td${classe}>${valor}</td>`;
+    }).join("") + "</tr>"
   )).join("");
   alvo.innerHTML = `<table><thead><tr>${cabecalho}</tr></thead><tbody>${corpo}</tbody></table>`;
 }
@@ -63,11 +67,55 @@ async function atualizarPropostas() {
   }
 }
 
+function parsearParametrosMdt(texto) {
+  return (texto || "").split(";").map((bloco) => bloco.trim()).filter(Boolean).map((bloco) => {
+    const [parametro, valor, unidade, valor_referencia, criticidade] = bloco.split("|").map((parte) => parte.trim());
+    return { parametro, valor, unidade: unidade || null, valor_referencia: valor_referencia || null, criticidade: criticidade || "NORMAL" };
+  }).filter((parametro) => parametro.parametro && parametro.valor);
+}
+
+async function verAprazamentos() {
+  const prescricao = document.getElementById("aprPrescricao").value;
+  if (!prescricao) {
+    document.getElementById("listaAprazamentos").innerHTML = "<p class='vazio'>Sem prescricao selecionada.</p>";
+    return;
+  }
+  try {
+    const aprazamentos = await api(`/api/prescricoes/${prescricao}/aprazamentos`);
+    renderizar("listaAprazamentos", [
+      { titulo: "ID", chave: "id" },
+      { titulo: "Horario", chave: "horario" },
+      { titulo: "Estado", chave: "estado" },
+    ], aprazamentos);
+    document.getElementById("listaAprazamentos").insertAdjacentHTML(
+      "beforeend",
+      aprazamentos.filter((aprazamento) => aprazamento.estado === "PENDENTE").map((aprazamento) => (
+        `<button data-administrar="${escapeHtml(aprazamento.id)}">Administrar</button>`
+      )).join("")
+    );
+  } catch (erro) { mensagem(erro.message, true); }
+}
+
+async function carregarDietas() {
+  const episodio = document.getElementById("cuiEpisodio").value;
+  if (!episodio) return;
+  try {
+    const dietas = await api(`/api/episodios/${episodio}/nutricao`);
+    renderizar("tabelaDietas", [
+      { titulo: "Dieta", chave: "dieta" },
+      { titulo: "Observacao", chave: "observacao" },
+      { titulo: "Prescrita por", chave: "prescrita_por" },
+    ], dietas);
+  } catch (_) { }
+}
+
 function mostrarSecao(nome) {
   document.querySelectorAll(".secao").forEach((secao) => { secao.hidden = secao.id !== nome; });
+  const botaoAtivo = document.querySelector(`#navegacao button[data-secao="${nome}"]`);
   document.querySelectorAll("#navegacao button[data-secao]").forEach((botao) => {
     botao.classList.toggle("ativo", botao.dataset.secao === nome);
   });
+  document.getElementById("breadcrumb").textContent = `HIS > ${botaoAtivo ? botaoAtivo.textContent : nome}`;
 }
 
 async function carregar() {
@@ -103,7 +151,7 @@ async function carregar() {
 
     renderizar("tabelaFila", [
       { titulo: "Prioridade", chave: "prioridade" },
-      { titulo: "Cor", chave: "cor" },
+      { titulo: "Cor", chave: "cor", classeCss: (linha) => `manchester-${linha.cor}` },
       { titulo: "Paciente", chave: "paciente_nome" },
       { titulo: "Estado", chave: "estado" },
       { titulo: "Triagem", chave: "triagem_em" },
@@ -336,6 +384,76 @@ async function carregar() {
     preencherSelect("selCotacao", cotacoes.filter((cotacao) => cotacao.estado !== "ADJUDICADA"), "id", "descricao", "Seleciona a cotacao");
     await atualizarPropostas();
 
+    const [guias, concursos, ordensFornecimento, ordensPagamento, contratosTrabalho, servicos, senhas] = await Promise.all([
+      api("/api/logistica/guias-remessa").catch(() => []),
+      api("/api/compras/concursos").catch(() => []),
+      api("/api/compras/ordens-fornecimento").catch(() => []),
+      api("/api/financeiro/ordens-pagamento").catch(() => []),
+      api("/api/rh/contratos-trabalho").catch(() => []),
+      api("/api/servicos-gerais").catch(() => []),
+      api("/api/painel/senhas").catch(() => []),
+    ]);
+
+    renderizar("tabelaGuias", [
+      { titulo: "ID", chave: "id" },
+      { titulo: "Origem", chave: "unidade_origem" },
+      { titulo: "Destino", chave: "unidade_destino" },
+      { titulo: "Item", chave: "item" },
+      { titulo: "Estado", chave: "estado" },
+    ], guias);
+
+    renderizar("tabelaConcursos", [
+      { titulo: "ID", chave: "id" },
+      { titulo: "Numero", chave: "numero" },
+      { titulo: "Cotacao", chave: "cotacao_id" },
+      { titulo: "Estado", chave: "estado" },
+    ], concursos);
+
+    renderizar("tabelaOrdensFornecimento", [
+      { titulo: "ID", chave: "id" },
+      { titulo: "Fornecedor", chave: "fornecedor" },
+      { titulo: "Descricao", chave: "descricao" },
+      { titulo: "Estado", chave: "estado" },
+    ], ordensFornecimento);
+
+    renderizar("tabelaOrdensPagamento", [
+      { titulo: "ID", chave: "id" },
+      { titulo: "Fornecedor", chave: "fornecedor" },
+      { titulo: "Valor", chave: "valor" },
+      { titulo: "Estado", chave: "estado" },
+    ], ordensPagamento);
+
+    renderizar("tabelaContratosTrabalho", [
+      { titulo: "ID", chave: "id" },
+      { titulo: "Funcionario", chave: "staff_id" },
+      { titulo: "Tipo", chave: "tipo" },
+      { titulo: "Salario", chave: "salario_base" },
+    ], contratosTrabalho);
+
+    renderizar("tabelaServicos", [
+      { titulo: "ID", chave: "id" },
+      { titulo: "Area", chave: "area" },
+      { titulo: "Descricao", chave: "descricao" },
+      { titulo: "Estado", chave: "estado" },
+    ], servicos);
+
+    preencherSelect("cirLote", esterilizacoes.filter((lote) => lote.validade >= new Date().toISOString().slice(0, 10) && lote.indicador_biologico.toUpperCase() === "NEGATIVO"), "id", "lote", "Sem lote valido");
+    preencherSelect("conCotacao", cotacoes, "id", "descricao", "Seleciona a cotacao");
+    preencherSelect("ofeRequisicao", requisicoes, "id", "descricao", "Seleciona a requisicao");
+    preencherSelect("ordRequisicao", requisicoes, "id", "descricao", "Seleciona a requisicao");
+    preencherSelect("ctFuncionario", funcionarios, "id", "nome", "Seleciona o funcionario");
+    preencherSelect("folProcessar", folhas, "id", "id", "Seleciona a folha");
+    preencherSelect("alePaciente", pacientes, "id", "nome", "Seleciona o paciente");
+    preencherSelect("senhaChamar", senhas.filter((senha) => senha.estado === "AGUARDANDO"), "id", "senha", "Sem senhas");
+    preencherSelect("aprPrescricao", prescricoes, "id", "medicamento", "Seleciona a prescricao");
+
+    const alergias = await Promise.all(pacientes.slice(0, 30).map((paciente) => api(`/api/pacientes/${paciente.id}/alergias`).catch(() => [])));
+    renderizar("tabelaAlergias", [
+      { titulo: "Paciente", chave: "patient_id" },
+      { titulo: "Substancia", chave: "substancia" },
+      { titulo: "Reacao", chave: "reacao" },
+    ], alergias.flat());
+
     try {
       const saude = await fetch("/health").then((resposta) => resposta.json());
       document.getElementById("estadoSaude").textContent = `Servico ${saude.estado} - base ${saude.db} - versao ${saude.versao}`;
@@ -389,6 +507,7 @@ function iniciarSessao(dados) {
   });
   mostrarSecao("painel");
   carregar();
+  ligarPainelTempoReal();
 }
 
 document.getElementById("formLogin").addEventListener("submit", async (evento) => {
@@ -409,7 +528,10 @@ document.getElementById("formLogin").addEventListener("submit", async (evento) =
 });
 
 document.querySelectorAll("#navegacao button[data-secao]").forEach((botao) => {
-  botao.addEventListener("click", () => mostrarSecao(botao.dataset.secao));
+  botao.addEventListener("click", () => {
+    mostrarSecao(botao.dataset.secao);
+    if (botao.dataset.secao === "cuidados") carregarDietas();
+  });
 });
 
 document.getElementById("botaoSair").addEventListener("click", () => {
@@ -468,6 +590,7 @@ const acoes = [
     episodio_id: document.getElementById("mdtEpisodio").value,
     tipo: document.getElementById("mdtTipo").value,
     descricao: document.getElementById("mdtDescricao").value,
+    parametros: parsearParametrosMdt(document.getElementById("mdtParametros").value),
   })],
   ["formPreConsulta", null, () => null],
   ["formCirurgia", null, () => null],
@@ -537,6 +660,32 @@ const acoes = [
     referencia_id: document.getElementById("assReferencia").value,
     conteudo: document.getElementById("assConteudo").value,
   })],
+  ["formAlergia", null, () => null],
+  ["formGuia", "/api/logistica/guias-remessa", () => ({
+    unidade_destino: document.getElementById("guiDestino").value,
+    item: document.getElementById("guiItem").value,
+    quantidade: Number(document.getElementById("guiQuantidade").value),
+  })],
+  ["formConcurso", "/api/compras/concursos", () => ({
+    cotacao_id: document.getElementById("conCotacao").value,
+    numero: document.getElementById("conNumero").value,
+  })],
+  ["formOrdemFornecimento", "/api/compras/ordens-fornecimento", () => ({
+    purchase_id: document.getElementById("ofeRequisicao").value,
+    descricao: document.getElementById("ofeDescricao").value,
+    quantidade: Number(document.getElementById("ofeQuantidade").value),
+  })],
+  ["formContratoTrabalho", "/api/rh/contratos-trabalho", () => ({
+    staff_id: document.getElementById("ctFuncionario").value,
+    tipo: document.getElementById("ctTipo").value,
+    inicio: document.getElementById("ctInicio").value,
+    fim: document.getElementById("ctFim").value || null,
+    salario_base: Number(document.getElementById("ctSalario").value),
+  })],
+  ["formServicoGeral", "/api/servicos-gerais", () => ({
+    area: document.getElementById("srvArea").value,
+    descricao: document.getElementById("srvDescricao").value,
+  })],
 ];
 
 for (const [idFormulario, caminho, corpo] of acoes) {
@@ -568,6 +717,9 @@ for (const [idFormulario, caminho, corpo] of acoes) {
           body: JSON.stringify({
             medicamento: document.getElementById("preMedicamento").value,
             dose: document.getElementById("preDose").value,
+            justificacao_risco: document.getElementById("preJustificacao").value || null,
+            horarios: document.getElementById("preHorarios").value.split(",").map((valor) => valor.trim()).filter(Boolean),
+            dieta: document.getElementById("preDieta").value || null,
           }),
         });
       } else if (idFormulario === "formAlocar") {
@@ -590,6 +742,15 @@ for (const [idFormulario, caminho, corpo] of acoes) {
             descricao: document.getElementById("cirDescricao").value,
             checklist: document.getElementById("cirChecklist").value,
             equipamento_id: document.getElementById("cirEquipamento").value || null,
+            lote_id: document.getElementById("cirLote").value || null,
+          }),
+        });
+      } else if (idFormulario === "formAlergia") {
+        await api(`/api/pacientes/${document.getElementById("alePaciente").value}/alergias`, {
+          method: "POST",
+          body: JSON.stringify({
+            substancia: document.getElementById("aleSubstancia").value,
+            reacao: document.getElementById("aleReacao").value,
           }),
         });
       } else if (idFormulario === "formEvolucao") {
@@ -805,6 +966,87 @@ document.getElementById("botaoVagas").addEventListener("click", async () => {
 });
 
 document.getElementById("selCotacao").addEventListener("change", atualizarPropostas);
+
+document.getElementById("botaoVerAprazamentos").addEventListener("click", verAprazamentos);
+document.getElementById("cuiEpisodio").addEventListener("change", carregarDietas);
+
+document.getElementById("listaAprazamentos").addEventListener("click", async (evento) => {
+  const botao = evento.target.closest("button[data-administrar]");
+  if (!botao) return;
+  try {
+    await api(`/api/aprazamentos/${botao.dataset.administrar}/administrar`, { method: "POST" });
+    mensagem("Aprazamento administrado.");
+    await verAprazamentos();
+  } catch (erro) { mensagem(erro.message, true); }
+});
+
+acaoBotao("botaoProcessarFolha", () => `/api/folhas-salario/${document.getElementById("folProcessar").value}/processar`, null, "Folha processada com contrato e faltas.");
+acaoBotao("botaoOrdemPagamento", () => `/api/financeiro/ordens-pagamento`, () => ({
+  purchase_id: document.getElementById("ordRequisicao").value,
+}), "Ordem de pagamento assinada.");
+acaoBotao("botaoChamarSenha", () => `/api/painel/chamar?senha_id=${document.getElementById("senhaChamar").value}`, null, "Senha chamada.");
+
+document.getElementById("botaoRecibo").addEventListener("click", async () => {
+  try {
+    const resposta = await fetch(`/api/recibos/${document.getElementById("folProcessar").value}`, {
+      headers: { Authorization: `Bearer ${estado.token}` },
+    });
+    if (!resposta.ok) throw new Error("Sem permissao para este recibo");
+    const janela = window.open("", "_blank");
+    janela.document.write(await resposta.text());
+    janela.document.close();
+  } catch (erro) { mensagem(erro.message, true); }
+});
+
+for (const [idBotao, formato] of [["botaoExportarHl7", "HL7"], ["botaoExportarFhir", "FHIR"]]) {
+  document.getElementById(idBotao).addEventListener("click", async () => {
+    try {
+      const resultado = await api(`/api/mdt/pedidos/${document.getElementById("mdtPedido").value}/exportar?formato=${formato}`);
+      document.getElementById("mdtExportado").textContent = typeof resultado.conteudo === "string"
+        ? resultado.conteudo
+        : JSON.stringify(resultado.conteudo, null, 2);
+    } catch (erro) { mensagem(erro.message, true); }
+  });
+}
+
+document.getElementById("botaoIndicadoresBi").addEventListener("click", async () => {
+  try {
+    document.getElementById("biResumo").textContent = JSON.stringify(await api("/api/bi/indicadores"), null, 2);
+  } catch (erro) { mensagem(erro.message, true); }
+});
+
+document.getElementById("botaoExportarAuditoria").addEventListener("click", async () => {
+  try {
+    const resultado = await api("/api/auditoria/exportar?formato=csv");
+    document.getElementById("auditoriaExportada").textContent = resultado.conteudo;
+  } catch (erro) { mensagem(erro.message, true); }
+});
+
+function ligarPainelTempoReal() {
+  const protocolo = location.protocol === "https:" ? "wss" : "ws";
+  const socket = new WebSocket(`${protocolo}://${location.host}/ws/painel`);
+  const painel = document.getElementById("painelChamadas");
+  socket.onmessage = (evento) => {
+    try {
+      const dados = JSON.parse(evento.data);
+      if (dados.evento === "SenhaChamada") {
+        painel.innerHTML = `<span>${escapeHtml(dados.senha)}</span>`;
+        mensagem(`Senha ${dados.senha} chamada.`);
+      }
+    } catch (_) { }
+  };
+  socket.onclose = () => { setTimeout(ligarPainelTempoReal, 3000); };
+}
+
+document.addEventListener("keydown", (evento) => {
+  if (!evento.ctrlKey || !evento.altKey) return;
+  const tecla = evento.key.toUpperCase();
+  const destinos = { N: "pacientes", P: "episodios", S: "cuidados" };
+  if (destinos[tecla]) {
+    evento.preventDefault();
+    mostrarSecao(destinos[tecla]);
+  }
+});
 
 async function restaurarSessao() {
   if (!estado.token) return;
