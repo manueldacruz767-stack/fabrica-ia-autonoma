@@ -101,8 +101,10 @@
       </form>
       <div class="linha-form">
         <select id="acaoEpisodio"></select>
-        <button id="botaoAlta" type="button">Dar alta medica</button>
-        <button id="botaoAltaAdm" type="button">Concluir alta administrativa</button>
+        <div class="wizard">
+          <button id="botaoAlta" type="button">Dar alta medica</button>
+          <button id="botaoAltaAdm" type="button">Concluir alta administrativa</button>
+        </div>
         <button id="botaoProntuario" type="button">Ver prontuario</button>
         <input id="breakJustificacao" placeholder="Justificacao de emergencia">
         <button id="botaoBreakGlass" type="button">Acesso de emergencia</button>
@@ -136,7 +138,7 @@
         <input id="stkMinimo" type="number" min="0" placeholder="Minimo" required>
         <button type="submit">Atualizar stock</button>
       </form>
-      <div id="tabelaStock"></div>
+      <div id="tabelaStock" class="kanban"></div>
       <h3>Prescricoes pendentes</h3>
       <div id="listaPrescricoes"></div>
       <h3>Alertas</h3>
@@ -194,6 +196,7 @@
         <button type="submit">Criar equipamento</button>
       </form>
       <form id="formChamado" class="linha-form">
+        <input id="manQr" class="qr-help" placeholder="QR ou codigo do equipamento">
         <select id="manEquipamento"></select>
         <input id="manDescricao" placeholder="Descricao da avaria" required>
         <select id="manPrioridade"><option>NORMAL</option><option>ALTA</option><option>CRITICA</option></select>
@@ -329,6 +332,8 @@
         <input id="evoProxima" type="datetime-local" required>
         <button type="submit">Registar evolucao</button>
       </form>
+      <h3>Evolucoes registadas</h3>
+      <div id="listaEvolucoes" class="timeline"></div>
       <form id="formBalanco" class="linha-form">
         <input id="balEntradas" type="number" min="0" placeholder="Entradas ml" required>
         <input id="balSaidas" type="number" min="0" placeholder="Saidas ml" required>
@@ -343,17 +348,19 @@
         <input id="sumMedicamentos" placeholder="Medicamentos" required>
         <button type="submit">Criar sumario assinado</button>
       </form>
-      <form id="formTransferencia" class="linha-form">
-        <input id="transDestino" placeholder="Hospital destino" required>
-        <input id="transMotivo" placeholder="Motivo" required>
-        <input id="transVeiculo" placeholder="Veiculo" required>
-        <button type="submit">Registar transferencia</button>
-      </form>
-      <form id="formObito" class="linha-form">
-        <input id="obiCausa" placeholder="Causa" required>
-        <input id="obiData" type="datetime-local" required>
-        <button type="submit">Registar obito</button>
-      </form>
+      <div class="wizard">
+        <form id="formTransferencia" class="linha-form">
+          <input id="transDestino" placeholder="Hospital destino" required>
+          <input id="transMotivo" placeholder="Motivo" required>
+          <input id="transVeiculo" placeholder="Veiculo" required>
+          <button type="submit">Registar transferencia</button>
+        </form>
+        <form id="formObito" class="linha-form">
+          <input id="obiCausa" placeholder="Causa" required>
+          <input id="obiData" type="datetime-local" required>
+          <button type="submit">Registar obito</button>
+        </form>
+      </div>
       <h3>Seguranca do doente</h3>
       <form id="formAlergia" class="linha-form">
         <select id="alePaciente" required></select>
@@ -460,6 +467,7 @@
         <select id="folProcessar"></select>
         <button id="botaoProcessarFolha" type="button">Processar com faltas e contrato</button>
         <button id="botaoRecibo" type="button">Ver recibo</button>
+        <button id="botaoReciboPdf" type="button">Descarregar recibo PDF</button>
       </div>
       <form id="formServicoGeral" class="linha-form">
         <select id="srvArea"><option>LAVANDARIA</option><option>COZINHA</option><option>SEGURANCA</option><option>TI</option><option>LIMPEZA</option></select>
@@ -514,6 +522,18 @@
       <div id="tabelaEventos"></div>
     </section>
   </main>
+
+  <dialog id="modalRisco" class="modal-erro" role="alertdialog" aria-modal="true" aria-labelledby="tituloRisco" aria-describedby="descricaoRisco">
+    <h2 id="tituloRisco">Acao de Risco</h2>
+    <p id="descricaoRisco"></p>
+    <label>Justificacao da assuncao de risco
+      <input id="justificacaoRisco" minlength="10" required>
+    </label>
+    <div class="linha-form">
+      <button id="botaoConfirmarRisco" type="button">Confirmar risco e prescrever</button>
+      <button id="botaoCancelarRisco" type="button">Cancelar</button>
+    </div>
+  </dialog>
   <script src="/static/app.js"></script>
 </body>
 </html>

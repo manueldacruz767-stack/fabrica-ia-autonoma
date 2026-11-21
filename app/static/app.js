@@ -1,4 +1,6 @@
 const estado = { token: localStorage.getItem("his_token"), usuario: null };
+let ultimoFormularioAtivo = null;
+let riscoPendente = null;
 
 function escapeHtml(valor) {
   return String(valor ?? "")
@@ -15,7 +17,11 @@ async function api(caminho, opcoes = {}) {
   const resposta = await fetch(caminho, { ...opcoes, headers: { ...cabecalhos, ...(opcoes.headers || {}) } });
   let corpo = {};
   try { corpo = await resposta.json(); } catch (_) { corpo = {}; }
-  if (!resposta.ok) throw new Error(corpo.detail || `Erro ${resposta.status}`);
+  if (!resposta.ok) {
+    const erro = new Error(corpo.detail || `Erro ${resposta.status}`);
+    erro.status = resposta.status;
+    throw erro;
+  }
   return corpo;
 }
 
@@ -23,6 +29,78 @@ function mensagem(texto, erro = false) {
   const alvo = document.getElementById("mensagem");
   alvo.textContent = texto;
   alvo.className = erro ? "mensagem erro" : "mensagem";
+}
+
+function abrirModalRisco(descricao, pedido) {
+  riscoPendente = pedido;
+  document.getElementById("descricaoRisco").textContent = descricao;
+  document.getElementById("justificacaoRisco").value = "";
+  document.getElementById("modalRisco").showModal();
+  document.getElementById("justificacaoRisco").focus();
+}
+
+function fecharModalRisco(limparFormulario = false) {
+  const modal = document.getElementById("modalRisco");
+  if (modal && modal.open) modal.close();
+  riscoPendente = null;
+  if (limparFormulario && ultimoFormularioAtivo) ultimoFormularioAtivo.reset();
+}
+
+function preencherEquipamentoPorQr(texto) {
+  const conteudo = (texto || "").trim();
+  if (!conteudo) return;
+  const codigo = conteudo.split(/[:/]/).pop().trim();
+  const seletor = document.getElementById("manEquipamento");
+  const opcao = Array.from(seletor.options).find((item) => (
+    item.value === codigo || item.textContent.trim().toLowerCase() === codigo.toLowerCase()
+  ));
+  if (opcao) seletor.value = opcao.value;
+}
+
+function renderizarStockKanban(linhas) {
+  const alvo = document.getElementById("tabelaStock");
+  if (!linhas || !linhas.length) {
+    alvo.innerHTML = "<p class='vazio'>Sem stock para apresentar.</p>";
+    return;
+  }
+  alvo.innerHTML = linhas.map((item) => {
+    const critico = Number(item.quantidade) <= Number(item.minimo);
+    return `<article class="cartao-stock${critico ? " critico" : ""}" data-item-stock="${escapeHtml(item.medicamento)}">
+      <h4>${escapeHtml(item.medicamento)}</h4>
+      <p>Quantidade: <strong>${escapeHtml(item.quantidade)}</strong></p>
+      <p>Minimo: ${escapeHtml(item.minimo)}</p>
+      <button type="button" data-solicitar-stock="${escapeHtml(item.medicamento)}" data-minimo-stock="${escapeHtml(item.minimo)}">Solicitar</button>
+    </article>`;
+  }).join("");
+}
+
+async function carregarEvolucoes() {
+  const episodio = document.getElementById("cuiEpisodio").value;
+  const alvo = document.getElementById("listaEvolucoes");
+  if (!episodio) {
+    alvo.innerHTML = "<p class='vazio'>Seleciona um episodio para ver as evolucoes.</p>";
+    return;
+  }
+  try {
+    const evolucoes = await api(`/api/episodios/${encodeURIComponent(episodio)}/evolucoes`);
+    alvo.innerHTML = evolucoes.length ? evolucoes.map((evolucao) => (
+      `<article class="cartao-evolucao">
+        <span class="marcador" aria-hidden="true"></span>
+        <h4>${escapeHtml(evolucao.criado_em)}</h4>
+        <p><strong>Nota:</strong> ${escapeHtml(evolucao.nota)}</p>
+        <p><strong>Conduta:</strong> ${escapeHtml(evolucao.conduta)}</p>
+        <p><strong>Proxima avaliacao:</strong> ${escapeHtml(evolucao.proxima_avaliacao)}</p>
+        <p class="nota">Registado por ${escapeHtml(evolucao.autor)}</p>
+      </article>`
+    )).join("") : "<p class='vazio'>Sem evolucoes registadas.</p>";
+  } catch (erro) { mensagem(erro.message, true); }
+}
+
+function aplicarPerfis(perfil) {
+  document.querySelectorAll("#navegacao button[data-perfis]").forEach((botao) => {
+    const perfis = botao.dataset.perfis.split(",").map((item) => item.trim()).filter(Boolean);
+    botao.hidden = perfil !== "administrador" && !perfis.includes(perfil);
+  });
 }
 
 function renderizar(id, colunas, linhas) {
@@ -113,7 +191,10 @@ function mostrarSecao(nome) {
   document.querySelectorAll(".secao").forEach((secao) => { secao.hidden = secao.id !== nome; });
   const botaoAtivo = document.querySelector(`#navegacao button[data-secao="${nome}"]`);
   document.querySelectorAll("#navegacao button[data-secao]").forEach((botao) => {
-    botao.classList.toggle("ativo", botao.dataset.secao === nome);
+    const ativo = botao.dataset.secao === nome;
+    botao.classList.toggle("ativo", ativo);
+    if (ativo) botao.setAttribute("aria-current", "page");
+    else botao.removeAttribute("aria-current");
   });
   document.getElementById("breadcrumb").textContent = `HIS > ${botaoAtivo ? botaoAtivo.textContent : nome}`;
 }
@@ -164,11 +245,7 @@ async function carregar() {
       { titulo: "Episodio", chave: "episodio_id" },
     ], leitos);
 
-    renderizar("tabelaStock", [
-      { titulo: "Medicamento", chave: "medicamento" },
-      { titulo: "Quantidade", chave: "quantidade" },
-      { titulo: "Minimo", chave: "minimo" },
-    ], stock);
+    renderizarStockKanban(stock);
 
     renderizar("listaAlertas", [
       { titulo: "Nivel", chave: "nivel" },
@@ -380,6 +457,7 @@ async function carregar() {
     preencherSelect("agePaciente", pacientes, "id", "nome", "Seleciona o paciente");
     preencherSelect("ageConsulta", consultas.filter((consulta) => consulta.estado === "AGENDADO"), "id", "paciente", "Seleciona a consulta");
     preencherSelect("cuiEpisodio", episodiosAbertos, "id", "paciente_nome", "Seleciona o episodio");
+    await carregarEvolucoes();
     preencherSelect("propCotacao", cotacoes.filter((cotacao) => cotacao.estado !== "ADJUDICADA"), "id", "descricao", "Seleciona a cotacao");
     preencherSelect("selCotacao", cotacoes.filter((cotacao) => cotacao.estado !== "ADJUDICADA"), "id", "descricao", "Seleciona a cotacao");
     await atualizarPropostas();
@@ -501,10 +579,7 @@ function iniciarSessao(dados) {
   document.getElementById("loginView").hidden = true;
   document.getElementById("appView").hidden = false;
   document.getElementById("sessao").textContent = `${dados.nome} (${dados.perfil})`;
-  document.querySelectorAll("#navegacao button[data-perfis]").forEach((botao) => {
-    const perfis = botao.dataset.perfis.split(",");
-    botao.hidden = dados.perfil !== "administrador" && !perfis.includes(dados.perfil);
-  });
+  aplicarPerfis(dados.perfil);
   mostrarSecao("painel");
   carregar();
   ligarPainelTempoReal();
@@ -691,6 +766,7 @@ const acoes = [
 for (const [idFormulario, caminho, corpo] of acoes) {
   document.getElementById(idFormulario).addEventListener("submit", async (evento) => {
     evento.preventDefault();
+    ultimoFormularioAtivo = evento.target;
     try {
       if (caminho) {
         await api(caminho, { method: "POST", body: JSON.stringify(corpo()) });
@@ -712,16 +788,21 @@ for (const [idFormulario, caminho, corpo] of acoes) {
           }),
         });
       } else if (idFormulario === "formPrescricao") {
-        await api(`/api/episodios/${document.getElementById("preEpisodio").value}/prescricoes`, {
-          method: "POST",
-          body: JSON.stringify({
-            medicamento: document.getElementById("preMedicamento").value,
-            dose: document.getElementById("preDose").value,
-            justificacao_risco: document.getElementById("preJustificacao").value || null,
-            horarios: document.getElementById("preHorarios").value.split(",").map((valor) => valor.trim()).filter(Boolean),
-            dieta: document.getElementById("preDieta").value || null,
-          }),
-        });
+        const pedido = {
+          medicamento: document.getElementById("preMedicamento").value,
+          dose: document.getElementById("preDose").value,
+          justificacao_risco: document.getElementById("preJustificacao").value || null,
+          horarios: document.getElementById("preHorarios").value.split(",").map((valor) => valor.trim()).filter(Boolean),
+          dieta: document.getElementById("preDieta").value || null,
+        };
+        const caminhoPrescricao = `/api/episodios/${document.getElementById("preEpisodio").value}/prescricoes`;
+        try {
+          await api(caminhoPrescricao, { method: "POST", body: JSON.stringify(pedido) });
+        } catch (erro) {
+          if (erro.status !== 409) throw erro;
+          abrirModalRisco(erro.message, { caminho: caminhoPrescricao, corpo: pedido });
+          return;
+        }
       } else if (idFormulario === "formAlocar") {
         await api(`/api/leitos/${document.getElementById("aloLeito").value}/alocar`, {
           method: "POST",
@@ -968,7 +1049,10 @@ document.getElementById("botaoVagas").addEventListener("click", async () => {
 document.getElementById("selCotacao").addEventListener("change", atualizarPropostas);
 
 document.getElementById("botaoVerAprazamentos").addEventListener("click", verAprazamentos);
-document.getElementById("cuiEpisodio").addEventListener("change", carregarDietas);
+document.getElementById("cuiEpisodio").addEventListener("change", () => {
+  carregarDietas();
+  carregarEvolucoes();
+});
 
 document.getElementById("listaAprazamentos").addEventListener("click", async (evento) => {
   const botao = evento.target.closest("button[data-administrar]");
@@ -996,6 +1080,64 @@ document.getElementById("botaoRecibo").addEventListener("click", async () => {
     janela.document.write(await resposta.text());
     janela.document.close();
   } catch (erro) { mensagem(erro.message, true); }
+});
+
+document.getElementById("botaoReciboPdf").addEventListener("click", async () => {
+  try {
+    const folhaId = document.getElementById("folProcessar").value;
+    if (!folhaId) {
+      mensagem("Seleciona uma folha para gerar o recibo.", true);
+      return;
+    }
+    const resposta = await fetch(`/api/recibos/${encodeURIComponent(folhaId)}/pdf`, {
+      headers: { Authorization: `Bearer ${estado.token}` },
+    });
+    if (!resposta.ok) throw new Error("Sem permissao para este recibo");
+    const bytes = await resposta.arrayBuffer();
+    const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (erro) { mensagem(erro.message, true); }
+});
+
+document.getElementById("modalRisco").addEventListener("cancel", () => fecharModalRisco(true));
+document.getElementById("botaoCancelarRisco").addEventListener("click", () => fecharModalRisco(true));
+document.getElementById("botaoConfirmarRisco").addEventListener("click", async () => {
+  if (!riscoPendente) return;
+  const justificacao = document.getElementById("justificacaoRisco").value.trim();
+  if (justificacao.length < 10) {
+    mensagem("A justificacao de risco deve ter pelo menos 10 caracteres.", true);
+    return;
+  }
+  riscoPendente.corpo.justificacao_risco = justificacao;
+  document.getElementById("preJustificacao").value = justificacao;
+  try {
+    await api(riscoPendente.caminho, { method: "POST", body: JSON.stringify(riscoPendente.corpo) });
+    fecharModalRisco();
+    mensagem("Prescricao com risco confirmada e justificada.");
+    document.getElementById("formPrescricao").reset();
+    await carregar();
+  } catch (erro) { mensagem(erro.message, true); }
+});
+
+document.getElementById("manQr").addEventListener("input", (evento) => preencherEquipamentoPorQr(evento.target.value));
+document.getElementById("manQr").addEventListener("paste", (evento) => {
+  preencherEquipamentoPorQr((evento.clipboardData || window.clipboardData).getData("text"));
+});
+
+document.getElementById("tabelaStock").addEventListener("click", (evento) => {
+  const botao = evento.target.closest("button[data-solicitar-stock]");
+  if (!botao) return;
+  document.getElementById("stkMedicamento").value = botao.dataset.solicitarStock;
+  document.getElementById("stkQuantidade").value = botao.dataset.minimoStock;
+  document.getElementById("stkMinimo").value = botao.dataset.minimoStock;
+  document.getElementById("stkMedicamento").focus();
+  mensagem(`Reposicao de ${botao.dataset.solicitarStock} preparada.`);
+});
+
+document.addEventListener("focusin", (evento) => {
+  const formulario = evento.target.closest("form");
+  if (formulario) ultimoFormularioAtivo = formulario;
 });
 
 for (const [idBotao, formato] of [["botaoExportarHl7", "HL7"], ["botaoExportarFhir", "FHIR"]]) {
@@ -1039,6 +1181,12 @@ function ligarPainelTempoReal() {
 }
 
 document.addEventListener("keydown", (evento) => {
+  const modal = document.getElementById("modalRisco");
+  if (evento.key === "Escape" && modal && modal.open) {
+    evento.preventDefault();
+    fecharModalRisco(true);
+    return;
+  }
   if (!evento.ctrlKey || !evento.altKey) return;
   const tecla = evento.key.toUpperCase();
   const destinos = { N: "pacientes", P: "episodios", S: "cuidados" };

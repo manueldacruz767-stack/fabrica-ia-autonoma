@@ -1,0 +1,85 @@
+groups:
+  - name: his-observabilidade
+    interval: 30s
+    rules:
+      - alert: his_alta_latencia_p95
+        expr: >-
+          his_latencia_p95_segundos > 0.5
+          or
+          histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[5m]))) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          servico: his-app
+        annotations:
+          summary: "Latência P95 acima de 0,5 s no HIS"
+          description: "A latência P95 das requisições ultrapassou 0,5 s durante 5 minutos. Verificar API, banco e dependências."
+
+      - alert: his_taxa_erro_5xx
+        expr: >-
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m]))
+            or
+            sum(rate(his_erros_total[5m]))
+          )
+          /
+          clamp_min(
+            sum(rate(http_requests_total[5m]))
+            or
+            sum(rate(his_requisicoes_total[5m])),
+            1
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          servico: his-app
+        annotations:
+          summary: "Taxa de erros 5xx acima de 1% no HIS"
+          description: "Mais de 1% das requisições resultaram em erro 5xx nos últimos 5 minutos. Verificar logs da API e integrações."
+
+      - alert: his_saturacao_recursos
+        expr: >-
+          (
+            sum(100 * (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m]))))
+            or
+            sum(100 * rate(process_cpu_seconds_total[5m]))
+            or
+            sum(100 * (1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes)))
+          ) > 85
+        for: 5m
+        labels:
+          severity: warning
+          servico: his-app
+        annotations:
+          summary: "Saturação de recursos acima de 85% no HIS"
+          description: "CPU ou memória do HIS ultrapassou 85% durante 5 minutos. Considerar escalar o serviço ou investigar picos de carga."
+
+      - alert: his_sla_expirado
+        expr: >-
+          his_sla_expirado > 0
+          or
+          (his_alertas_nao_lidos > 0 and on() up{job="his-app"} == 1)
+          or
+          (absent(his_sla_expirado) and absent(his_alertas_nao_lidos) and on() up{job="his-app"} == 0)
+        for: 10m
+        labels:
+          severity: critical
+          servico: his-app
+        annotations:
+          summary: "SLA de equipamentos expirado no HIS"
+          description: "Existem chamados de manutenção com SLA expirado ou o HIS deixou de ser monitorizado. Verificar equipamentos e escalonamentos."
+
+      - alert: his_health_degradado
+        expr: >-
+          his_health_degradado == 1
+          or
+          (1 - min(up{job="his-app"})) == 1
+          or
+          (absent(his_health_degradado) and on() probe_success{job="his-health"} == 0)
+        for: 2m
+        labels:
+          severity: critical
+          servico: his-app
+        annotations:
+          summary: "Saúde do HIS degradada"
+          description: "O endpoint /health indicou estado degradado ou o scrape do HIS falhou. Verificar dependências postgres, redis e rabbitmq."

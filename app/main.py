@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from app import db
+from app.config import carregar_config
 from app.consumidor_outbox import publicar_pendentes
 from app.domain import (
     ESTADOS_FINAIS,
@@ -36,10 +37,19 @@ from app.security import (
     unidade_permitida,
     usuario_atual,
 )
+from app.relatorios_router import router as relatorios_router
+from app.repositorio import Repositorio
+from app.routers.seguranca import router as router_seguranca
+from app.seguranca_avancada import middleware_contexto_hospitalar
 
 db.inicializar()
+if carregar_config().dsn:
+    Repositorio().aplicar_migracoes()
 
 app = FastAPI(title="HIS - Sistema de Gestao Hospitalar", version="0.1.0")
+middleware_contexto_hospitalar(app)
+app.include_router(router_seguranca)
+app.include_router(relatorios_router)
 DIRETORIO_STATIC = Path(__file__).resolve().parent / "static"
 METRICAS = {"requisicoes": 0, "erros": 0, "eventos_publicados": 0}
 PAINEL_CLIENTES: set[WebSocket] = set()

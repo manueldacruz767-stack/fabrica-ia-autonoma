@@ -5,6 +5,8 @@ import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from app.migracoes import executar_migracoes
+
 BASE = Path(__file__).resolve().parent.parent
 CAMINHO_DB = Path(os.getenv("HIS_DB_PATH", BASE / "data" / "his.db"))
 
@@ -849,5 +851,6 @@ def inicializar() -> None:
             (f"ORC-{exercicio}", exercicio, agora()),
         )
         conexao.commit()
+        executar_migracoes(conexao)
     finally:
         conexao.close()

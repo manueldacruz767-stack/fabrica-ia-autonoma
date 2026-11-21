@@ -10,10 +10,23 @@ services:
       HIS_HOST: 0.0.0.0
       HIS_PORT: 8000
       HIS_DB_PATH: /dados/his.db
+      HIS_SIGNING_KEY_PATH: /dados/his_signing.key
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: his
+      POSTGRES_DB: his
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      OUTBOX_WEBHOOK_URL: ${OUTBOX_WEBHOOK_URL:-}
     depends_on:
-      - postgres
-      - redis
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 30s
@@ -28,47 +41,99 @@ services:
       - his-data:/dados
     environment:
       HIS_DB_PATH: /dados/his.db
+      HIS_SIGNING_KEY_PATH: /dados/his_signing.key
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      OUTBOX_WEBHOOK_URL: ${OUTBOX_WEBHOOK_URL:-}
     depends_on:
-      - app
+      app:
+        condition: service_healthy
 
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: his
-      POSTGRES_USER: his
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-his_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-his}
+      POSTGRES_USER: ${POSTGRES_USER:-his}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no ambiente}
     volumes:
       - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-his}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-his_dev_password}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?defina RABBITMQ_PASSWORD no ambiente}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
 
   prometheus:
     image: prom/prometheus:v2.54.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
     ports:
       - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus_rules.yml:/etc/prometheus/prometheus_rules.yml:ro
+      - prometheus-data:/prometheus
     depends_on:
-      - app
+      app:
+        condition: service_healthy
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    environment:
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-https://example.invalid/webhook}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-auditoria@example.invalid}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        sed -e "s|SLACK_WEBHOOK_URL_PLACEHOLDER|$${SLACK_WEBHOOK_URL}|g" \
+            -e "s|ALERT_EMAIL_TO_PLACEHOLDER|$${ALERT_EMAIL_TO}|g" \
+            /etc/alertmanager/alertmanager.yml > /tmp/alertmanager.yml
+        exec /bin/alertmanager --config.file=/tmp/alertmanager.yml --storage.path=/alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    depends_on:
+      - prometheus
 
   grafana:
     image: grafana/grafana:11.2.0
     ports:
       - "3000:3000"
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-his_dev_password}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?defina GRAFANA_PASSWORD no ambiente}
     volumes:
       - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana:/etc/grafana/provisioning:ro
     depends_on:
       - prometheus
 
@@ -76,4 +141,7 @@ volumes:
   his-data:
   pg-data:
   redis-data:
+  rabbitmq-data:
+  prometheus-data:
+  alertmanager-data:
   grafana-data:

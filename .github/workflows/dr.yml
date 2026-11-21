@@ -1,0 +1,72 @@
+name: Teste de Disaster Recovery
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  restore-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HIS_DR_ENABLED: ${{ vars.HIS_DR_ENABLED }}
+    steps:
+      - name: Verificar bandeira DR
+        id: gate
+        run: |
+          if [ "$HIS_DR_ENABLED" != "true" ]; then
+            echo "DR desativado (HIS_DR_ENABLED='$HIS_DR_ENABLED'); restore_test.sh ignorado."
+            echo "executar=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "DR ativado; validando configuracao de restauracao."
+            echo "executar=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Clonar repositorio
+        if: steps.gate.outputs.executar == 'true'
+        uses: actions/checkout@v4
+
+      - name: Validar DATABASE_URL
+        id: db
+        if: steps.gate.outputs.executar == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL ausente; restore_test.sh ignorado."
+            echo "executar=false" >> "$GITHUB_OUTPUT"
+          else
+            case "$DATABASE_URL" in
+              postgres://*|postgresql://*)
+                echo "DATABASE_URL valida; iniciando teste de restauracao."
+                echo "executar=true" >> "$GITHUB_OUTPUT"
+                ;;
+              *)
+                echo "DATABASE_URL com formato inesperado; restore_test.sh ignorado."
+                echo "executar=false" >> "$GITHUB_OUTPUT"
+                ;;
+            esac
+          fi
+
+      - name: Gerar dump temporario para validacao
+        id: dump
+        if: steps.gate.outputs.executar == 'true' && steps.db.outputs.executar == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          rm -f /tmp/his-dr-test.dump
+          docker run --rm --network host -v /tmp:/tmp -e DATABASE_URL="$DATABASE_URL" postgres:16-alpine \
+            sh -c 'pg_dump --format=custom --file=/tmp/his-dr-test.dump "$DATABASE_URL"'
+          test -s /tmp/his-dr-test.dump
+
+      - name: Executar teste de restauracao
+        if: steps.gate.outputs.executar == 'true' && steps.db.outputs.executar == 'true'
+        run: bash scripts/restore_test.sh /tmp/his-dr-test.dump
