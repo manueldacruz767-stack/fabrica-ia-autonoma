@@ -34,6 +34,10 @@
       <button data-secao="fila">Fila medica</button>
       <button data-secao="leitos">Leitos</button>
       <button data-secao="stock">Stock e alertas</button>
+      <button data-secao="rh">RH</button>
+      <button data-secao="compras">Compras</button>
+      <button data-secao="financeiro">Financas</button>
+      <button data-secao="mdt">MDT</button>
       <button data-secao="auditoria">Auditoria</button>
       <button id="botaoSair">Sair</button>
     </nav>
@@ -124,6 +128,88 @@
       <div id="listaPrescricoes"></div>
       <h3>Alertas</h3>
       <div id="listaAlertas"></div>
+    </section>
+
+    <section id="rh" class="secao" hidden>
+      <h2>Recursos Humanos e escalas</h2>
+      <form id="formFuncionario" class="linha-form">
+        <input id="funNome" placeholder="Nome do funcionario" required>
+        <input id="funPerfil" placeholder="Perfil funcional" required>
+        <input id="funUnidade" placeholder="Unidade" required>
+        <button type="submit">Criar funcionario</button>
+      </form>
+      <form id="formEscala" class="linha-form">
+        <select id="escFuncionario" required></select>
+        <input id="escData" type="date" required>
+        <select id="escTurno"><option>MANHA</option><option>TARDE</option><option>NOITE</option></select>
+        <input id="escUnidade" placeholder="Unidade" required>
+        <button type="submit">Criar escala</button>
+      </form>
+      <form id="formPedidoRh" class="linha-form">
+        <select id="rhFuncionario" required></select>
+        <select id="rhTipo"><option>FERIAS</option><option>FALTA</option><option>TROCA_TURNO</option></select>
+        <input id="rhInicio" type="date" required>
+        <input id="rhFim" type="date" required>
+        <input id="rhJustificacao" placeholder="Justificacao">
+        <button type="submit">Submeter pedido</button>
+      </form>
+      <div class="linha-form">
+        <select id="rhPedido"></select>
+        <input id="rhParecer" placeholder="Parecer de chefia">
+        <button id="botaoAprovarRh" type="button">Aprovar na chefia</button>
+        <button id="botaoHomologarRh" type="button">Homologar no RH</button>
+      </div>
+      <div id="tabelaFuncionarios"></div>
+      <div id="tabelaEscalas"></div>
+      <div id="tabelaPedidosRh"></div>
+    </section>
+
+    <section id="compras" class="secao" hidden>
+      <h2>Requisicoes, alcaladas e rececao</h2>
+      <form id="formRequisicao" class="linha-form">
+        <input id="reqDescricao" placeholder="Descricao" required>
+        <input id="reqQuantidade" type="number" min="1" placeholder="Quantidade" required>
+        <input id="reqValor" type="number" min="0.01" step="0.01" placeholder="Valor" required>
+        <input id="reqUnidade" placeholder="Unidade solicitante" required>
+        <button type="submit">Criar requisicao</button>
+      </form>
+      <div class="linha-form">
+        <select id="reqSelecionada"></select>
+        <input id="reqParecer" placeholder="Parecer tecnico ou juridico">
+        <button id="botaoValidarTecnica" type="button">Validar tecnica</button>
+        <button id="botaoVerificarOrcamento" type="button">Verificar orcamento</button>
+        <button id="botaoParecer" type="button">Parecer conformidade</button>
+        <button id="botaoAprovarCompra" type="button">Aprovar</button>
+        <button id="botaoReceber" type="button">Receber mercadoria</button>
+      </div>
+      <div id="tabelaRequisicoes"></div>
+    </section>
+
+    <section id="financeiro" class="secao" hidden>
+      <h2>Orcamento e empenhos</h2>
+      <div id="resumoOrcamento"></div>
+      <form id="formOrcamento" class="linha-form">
+        <input id="orcTotal" type="number" min="0.01" step="0.01" placeholder="Novo total" required>
+        <button type="submit">Atualizar orcamento</button>
+      </form>
+      <div id="tabelaEmpenhos"></div>
+    </section>
+
+    <section id="mdt" class="secao" hidden>
+      <h2>Meios Complementares de Diagnostico e Terapeutica</h2>
+      <form id="formPedidoMdt" class="linha-form">
+        <select id="mdtEpisodio" required></select>
+        <select id="mdtTipo"><option>LABORATORIO</option><option>IMAGEM</option><option>FISIOTERAPIA</option></select>
+        <input id="mdtDescricao" placeholder="Descricao do pedido" required>
+        <button type="submit">Pedir exame ou sessao</button>
+      </form>
+      <div class="linha-form">
+        <select id="mdtPedido"></select>
+        <input id="mdtResultado" placeholder="Resultado ou evolucao">
+        <button id="botaoResultadoMdt" type="button">Registar resultado</button>
+        <button id="botaoValidarMdt" type="button">Validar resultado</button>
+      </div>
+      <div id="tabelaPedidosMdt"></div>
     </section>
 
     <section id="auditoria" class="secao" hidden>

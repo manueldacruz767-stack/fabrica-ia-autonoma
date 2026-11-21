@@ -16,6 +16,32 @@ USUARIOS = (
     ("limpeza", "limpeza123", "limpeza", "Equipa de Higienizacao"),
     ("gestor", "gestor123", "gestor", "Gestor de Leitos"),
     ("auditor", "auditor123", "auditoria", "Auditoria Interna"),
+    ("rh", "rh123", "rh", "Tecnico de RH"),
+    ("chefe", "chefe123", "chefia", "Chefe de Servico"),
+    ("compras", "compras123", "compras", "Compras e Aprovisionamento"),
+    ("financeiro", "financeiro123", "financeiro", "Financas e Contabilidade"),
+    ("juridico", "juridico123", "juridico", "Assessoria Juridica"),
+    ("logistica", "logistica123", "logistica", "Logistica e Armazem"),
+    ("laboratorio", "laboratorio123", "laboratorio", "Tecnico de Laboratorio"),
+    ("imagiologia", "imagiologia123", "imagiologia", "Tecnico de Imagiologia"),
+    ("fisioterapia", "fisioterapia123", "fisioterapia", "Fisioterapeuta"),
+)
+
+FUNCIONARIOS = (
+    ("medico", "Dr. Antonio Silva", "medico", "Medicina"),
+    ("enfermeiro", "Enf. Maria Costa", "enfermeiro", "Urgencia"),
+    ("farmacia", "Farm. Joaquim Nunes", "farmacia", "Farmacia"),
+    ("limpeza", "Equipa de Higienizacao", "limpeza", "Servicos Gerais"),
+    ("gestor", "Gestor de Leitos", "gestor", "Administracao"),
+    ("rh", "Tecnico de RH", "rh", "Recursos Humanos"),
+    ("chefe", "Chefe de Servico", "chefia", "Urgencia"),
+    ("compras", "Compras e Aprovisionamento", "compras", "Aprovisionamento"),
+    ("financeiro", "Financas e Contabilidade", "financeiro", "Financas"),
+    ("juridico", "Assessoria Juridica", "juridico", "Juridico"),
+    ("logistica", "Logistica e Armazem", "logistica", "Armazem"),
+    ("laboratorio", "Tecnico de Laboratorio", "laboratorio", "Laboratorio"),
+    ("imagiologia", "Tecnico de Imagiologia", "imagiologia", "Imagiologia"),
+    ("fisioterapia", "Fisioterapeuta", "fisioterapia", "Reabilitacao"),
 )
 
 MEDICAMENTOS = (
@@ -192,6 +218,86 @@ def inicializar() -> None:
                 criado_em TEXT NOT NULL,
                 lido INTEGER NOT NULL DEFAULT 0
             );
+
+            CREATE TABLE IF NOT EXISTS staff (
+                id TEXT PRIMARY KEY,
+                nome TEXT NOT NULL,
+                perfil_funcional TEXT NOT NULL,
+                unidade TEXT NOT NULL,
+                ativo INTEGER NOT NULL DEFAULT 1
+            );
+
+            CREATE TABLE IF NOT EXISTS shifts (
+                id TEXT PRIMARY KEY,
+                staff_id TEXT NOT NULL REFERENCES staff(id),
+                data TEXT NOT NULL,
+                turno TEXT NOT NULL,
+                unidade TEXT NOT NULL,
+                criado_por TEXT NOT NULL,
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS leave_requests (
+                id TEXT PRIMARY KEY,
+                staff_id TEXT NOT NULL REFERENCES staff(id),
+                tipo TEXT NOT NULL,
+                inicio TEXT NOT NULL,
+                fim TEXT NOT NULL,
+                justificacao TEXT,
+                estado TEXT NOT NULL,
+                criado_por TEXT NOT NULL,
+                aprovado_por TEXT,
+                homologado_por TEXT,
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS purchase_requests (
+                id TEXT PRIMARY KEY,
+                descricao TEXT NOT NULL,
+                quantidade INTEGER NOT NULL,
+                valor REAL NOT NULL,
+                unidade TEXT NOT NULL,
+                solicitante_id TEXT NOT NULL,
+                validador_tecnico_id TEXT,
+                verificado_orcamento_id TEXT,
+                parecer_juridico_id TEXT,
+                aprovador_id TEXT,
+                rececionista_id TEXT,
+                estado TEXT NOT NULL,
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS budget (
+                id TEXT PRIMARY KEY,
+                exercicio TEXT NOT NULL,
+                total REAL NOT NULL,
+                executado REAL NOT NULL DEFAULT 0,
+                atualizado_por TEXT NOT NULL,
+                atualizado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS commitments (
+                id TEXT PRIMARY KEY,
+                purchase_id TEXT NOT NULL REFERENCES purchase_requests(id),
+                valor REAL NOT NULL,
+                estado TEXT NOT NULL,
+                criado_por TEXT NOT NULL,
+                criado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS mdt_orders (
+                id TEXT PRIMARY KEY,
+                episode_id TEXT NOT NULL REFERENCES episodes(id),
+                tipo TEXT NOT NULL,
+                descricao TEXT NOT NULL,
+                medico_id TEXT NOT NULL,
+                estado TEXT NOT NULL,
+                resultado TEXT,
+                tecnico_id TEXT,
+                validado_por TEXT,
+                criado_em TEXT NOT NULL,
+                concluido_em TEXT
+            );
             """
         )
 
@@ -215,6 +321,19 @@ def inicializar() -> None:
                 "INSERT OR IGNORE INTO beds (id, codigo, unidade, estado) VALUES (?, ?, ?, 'LIVRE')",
                 (codigo, codigo, unidade),
             )
+
+        for identificador, nome, perfil, unidade in FUNCIONARIOS:
+            conexao.execute(
+                "INSERT OR IGNORE INTO staff (id, nome, perfil_funcional, unidade) VALUES (?, ?, ?, ?)",
+                (identificador, nome, perfil, unidade),
+            )
+
+        exercicio = str(datetime.now(timezone.utc).year)
+        conexao.execute(
+            "INSERT OR IGNORE INTO budget (id, exercicio, total, executado, atualizado_por, atualizado_em) "
+            "VALUES (?, ?, 1000000, 0, 'sistema', ?)",
+            (f"ORC-{exercicio}", exercicio, agora()),
+        )
         conexao.commit()
     finally:
         conexao.close()

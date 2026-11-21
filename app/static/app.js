@@ -146,6 +146,76 @@ async function carregar() {
       )).join("")
     );
 
+    const [funcionarios, escalas, pedidosRh, requisicoes, empenhos, pedidosMdt] = await Promise.all([
+      api("/api/rh/funcionarios").catch(() => []),
+      api("/api/rh/escalas").catch(() => []),
+      api("/api/rh/pedidos").catch(() => []),
+      api("/api/compras/requisicoes").catch(() => []),
+      api("/api/financeiro/empenhos").catch(() => []),
+      api("/api/mdt/pedidos").catch(() => []),
+    ]);
+
+    renderizar("tabelaFuncionarios", [
+      { titulo: "ID", chave: "id" },
+      { titulo: "Nome", chave: "nome" },
+      { titulo: "Perfil", chave: "perfil_funcional" },
+      { titulo: "Unidade", chave: "unidade" },
+    ], funcionarios);
+
+    renderizar("tabelaEscalas", [
+      { titulo: "Data", chave: "data" },
+      { titulo: "Funcionario", chave: "funcionario_nome" },
+      { titulo: "Turno", chave: "turno" },
+      { titulo: "Unidade", chave: "unidade" },
+    ], escalas);
+
+    renderizar("tabelaPedidosRh", [
+      { titulo: "ID", chave: "id" },
+      { titulo: "Funcionario", chave: "funcionario_nome" },
+      { titulo: "Tipo", chave: "tipo" },
+      { titulo: "Estado", chave: "estado" },
+    ], pedidosRh);
+
+    renderizar("tabelaRequisicoes", [
+      { titulo: "ID", chave: "id" },
+      { titulo: "Descricao", chave: "descricao" },
+      { titulo: "Valor", chave: "valor" },
+      { titulo: "Estado", chave: "estado" },
+    ], requisicoes);
+
+    renderizar("tabelaEmpenhos", [
+      { titulo: "ID", chave: "id" },
+      { titulo: "Descricao", chave: "descricao" },
+      { titulo: "Valor", chave: "valor" },
+      { titulo: "Estado", chave: "estado" },
+    ], empenhos);
+
+    renderizar("tabelaPedidosMdt", [
+      { titulo: "ID", chave: "id" },
+      { titulo: "Tipo", chave: "tipo" },
+      { titulo: "Descricao", chave: "descricao" },
+      { titulo: "Estado", chave: "estado" },
+      { titulo: "Resultado", chave: "resultado" },
+    ], pedidosMdt);
+
+    preencherSelect("escFuncionario", funcionarios, "id", "nome", "Seleciona o funcionario");
+    preencherSelect("rhFuncionario", funcionarios, "id", "nome", "Seleciona o funcionario");
+    preencherSelect("rhPedido", pedidosRh, "id", "id", "Seleciona o pedido");
+    preencherSelect("reqSelecionada", requisicoes, "id", "descricao", "Seleciona a requisicao");
+    preencherSelect("mdtPedido", pedidosMdt, "id", "id", "Seleciona o pedido MDT");
+    preencherSelect("mdtEpisodio", episodiosAbertos, "id", "paciente_nome", "Seleciona o episodio");
+
+    const relatorioFinanceiro = await api("/api/financeiro/relatorio").catch(() => null);
+    if (relatorioFinanceiro) {
+      document.getElementById("resumoOrcamento").innerHTML = `
+        <div class="grade-cartoes">
+          <div class="cartao-metrica"><strong>${escapeHtml(relatorioFinanceiro.total)}</strong><span>Total</span></div>
+          <div class="cartao-metrica"><strong>${escapeHtml(relatorioFinanceiro.executado)}</strong><span>Executado</span></div>
+          <div class="cartao-metrica"><strong>${escapeHtml(relatorioFinanceiro.disponivel)}</strong><span>Disponivel</span></div>
+          <div class="cartao-metrica"><strong>${escapeHtml(relatorioFinanceiro.valor_empenhado)}</strong><span>Empenhado</span></div>
+        </div>`;
+    }
+
     if (["auditoria", "administrador"].includes(estado.usuario.perfil)) {
       const [auditoria, eventos] = await Promise.all([api("/api/auditoria"), api("/api/eventos")]);
       renderizar("tabelaAuditoria", [
@@ -222,6 +292,38 @@ const acoes = [
     medicamento: document.getElementById("stkMedicamento").value,
     quantidade: Number(document.getElementById("stkQuantidade").value),
     minimo: Number(document.getElementById("stkMinimo").value),
+  })],
+  ["formFuncionario", "/api/rh/funcionarios", () => ({
+    nome: document.getElementById("funNome").value,
+    perfil_funcional: document.getElementById("funPerfil").value,
+    unidade: document.getElementById("funUnidade").value,
+  })],
+  ["formEscala", "/api/rh/escalas", () => ({
+    staff_id: document.getElementById("escFuncionario").value,
+    data: document.getElementById("escData").value,
+    turno: document.getElementById("escTurno").value,
+    unidade: document.getElementById("escUnidade").value,
+  })],
+  ["formPedidoRh", "/api/rh/pedidos", () => ({
+    staff_id: document.getElementById("rhFuncionario").value,
+    tipo: document.getElementById("rhTipo").value,
+    inicio: document.getElementById("rhInicio").value,
+    fim: document.getElementById("rhFim").value,
+    justificacao: document.getElementById("rhJustificacao").value || null,
+  })],
+  ["formRequisicao", "/api/compras/requisicoes", () => ({
+    descricao: document.getElementById("reqDescricao").value,
+    quantidade: Number(document.getElementById("reqQuantidade").value),
+    valor: Number(document.getElementById("reqValor").value),
+    unidade: document.getElementById("reqUnidade").value,
+  })],
+  ["formOrcamento", "/api/financeiro/orcamento", () => ({
+    total: Number(document.getElementById("orcTotal").value),
+  })],
+  ["formPedidoMdt", "/api/mdt/pedidos", () => ({
+    episodio_id: document.getElementById("mdtEpisodio").value,
+    tipo: document.getElementById("mdtTipo").value,
+    descricao: document.getElementById("mdtDescricao").value,
   })],
 ];
 
@@ -327,6 +429,49 @@ document.getElementById("listaPrescricoes").addEventListener("click", async (eve
     await carregar();
   } catch (erro) { mensagem(erro.message, true); }
 });
+
+async function acaoBotao(id, caminho, corpo, texto) {
+  document.getElementById(id).addEventListener("click", async () => {
+    try {
+      const opcoes = { method: "POST" };
+      if (corpo) opcoes.body = JSON.stringify(corpo());
+      await api(caminho(), opcoes);
+      mensagem(texto);
+      await carregar();
+    } catch (erro) { mensagem(erro.message, true); }
+  });
+}
+
+acaoBotao("botaoAprovarRh", () => `/api/rh/pedidos/${document.getElementById("rhPedido").value}/aprovar`, () => ({
+  parecer: document.getElementById("rhParecer").value,
+  aprovado: true,
+}), "Pedido aprovado na chefia.");
+
+acaoBotao("botaoHomologarRh", () => `/api/rh/pedidos/${document.getElementById("rhPedido").value}/homologar`, null, "Pedido homologado no RH.");
+
+acaoBotao("botaoValidarTecnica", () => `/api/compras/requisicoes/${document.getElementById("reqSelecionada").value}/validar-tecnica`, () => ({
+  parecer: document.getElementById("reqParecer").value,
+  aprovado: true,
+}), "Validacao tecnica registada.");
+
+acaoBotao("botaoVerificarOrcamento", () => `/api/compras/requisicoes/${document.getElementById("reqSelecionada").value}/verificar-orcamento`, null, "Cabimento verificado.");
+
+acaoBotao("botaoParecer", () => `/api/compras/requisicoes/${document.getElementById("reqSelecionada").value}/parecer`, () => ({
+  parecer: document.getElementById("reqParecer").value,
+  aprovado: true,
+}), "Parecer de conformidade registado.");
+
+acaoBotao("botaoAprovarCompra", () => `/api/compras/requisicoes/${document.getElementById("reqSelecionada").value}/aprovar`, null, "Requisicao aprovada e empenhada.");
+
+acaoBotao("botaoReceber", () => `/api/compras/requisicoes/${document.getElementById("reqSelecionada").value}/receber`, () => ({
+  conferencia: document.getElementById("reqParecer").value || "Conferencia física conforme",
+}), "Mercadoria recebida.");
+
+acaoBotao("botaoResultadoMdt", () => `/api/mdt/pedidos/${document.getElementById("mdtPedido").value}/resultado`, () => ({
+  resultado: document.getElementById("mdtResultado").value,
+}), "Resultado MDT registado.");
+
+acaoBotao("botaoValidarMdt", () => `/api/mdt/pedidos/${document.getElementById("mdtPedido").value}/validar`, null, "Resultado MDT validado.");
 
 async function restaurarSessao() {
   if (!estado.token) return;

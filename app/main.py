@@ -80,6 +80,66 @@ class AlocacaoModel(BaseModel):
     episodio_id: str
 
 
+class FuncionarioModel(BaseModel):
+    nome: str = Field(min_length=2)
+    perfil_funcional: str = Field(min_length=2)
+    unidade: str = Field(min_length=2)
+
+
+class EscalaModel(BaseModel):
+    staff_id: str
+    data: str = Field(min_length=8)
+    turno: str
+    unidade: str = Field(min_length=2)
+
+
+class PedidoRhModel(BaseModel):
+    staff_id: str
+    tipo: str
+    inicio: str = Field(min_length=8)
+    fim: str = Field(min_length=8)
+    justificacao: str | None = None
+
+
+class ParecerModel(BaseModel):
+    parecer: str = Field(min_length=5)
+    aprovado: bool = True
+
+
+class RececaoModel(BaseModel):
+    conferencia: str = Field(min_length=5)
+
+
+class RequisicaoModel(BaseModel):
+    descricao: str = Field(min_length=3)
+    quantidade: int = Field(ge=1)
+    valor: float = Field(gt=0)
+    unidade: str = Field(min_length=2)
+
+
+class BudgetModel(BaseModel):
+    total: float = Field(gt=0)
+
+
+class EmpenhoModel(BaseModel):
+    purchase_id: str
+    valor: float = Field(gt=0)
+
+
+class MdtPedidoModel(BaseModel):
+    episodio_id: str
+    tipo: str
+    descricao: str = Field(min_length=3)
+
+
+class MdtResultadoModel(BaseModel):
+    resultado: str = Field(min_length=3)
+
+
+LIMITE_ALCADA_1 = 5000.0
+PERFIS_MDT = {"LABORATORIO": "laboratorio", "IMAGEM": "imagiologia", "FISIOTERAPIA": "fisioterapia"}
+
+
 @contextmanager
 def conexao_aberta():
     conexao = db.ligacao()
@@ -117,6 +177,35 @@ def validar_dose(dose: str) -> None:
     limite = 10 if unidade == "g" else 1000
     if valor <= 0 or valor > limite:
         raise HTTPException(status_code=400, detail=f"Dose fora do intervalo seguro para {unidade}")
+
+
+def obter_pedido_rh(conexao, pedido_id: str):
+    linha = conexao.execute("SELECT * FROM leave_requests WHERE id = ?", (pedido_id,)).fetchone()
+    if not linha:
+        raise HTTPException(status_code=404, detail="Pedido de RH nao encontrado")
+    return linha
+
+
+def obter_requisicao(conexao, requisicao_id: str):
+    linha = conexao.execute("SELECT * FROM purchase_requests WHERE id = ?", (requisicao_id,)).fetchone()
+    if not linha:
+        raise HTTPException(status_code=404, detail="Requisicao nao encontrada")
+    return linha
+
+
+def obter_pedido_mdt(conexao, pedido_id: str):
+    linha = conexao.execute("SELECT * FROM mdt_orders WHERE id = ?", (pedido_id,)).fetchone()
+    if not linha:
+        raise HTTPException(status_code=404, detail="Pedido de MDT nao encontrado")
+    return linha
+
+
+def orcamento_atual(conexao):
+    exercicio = str(datetime.now(timezone.utc).year)
+    linha = conexao.execute("SELECT * FROM budget WHERE exercicio = ?", (exercicio,)).fetchone()
+    if not linha:
+        raise HTTPException(status_code=404, detail="Orcamento do exercicio nao encontrado")
+    return linha
 
 
 @app.post("/api/auth/login")
@@ -667,7 +756,519 @@ def dashboard(usuario: dict = Depends(usuario_atual)) -> dict:
             "alertas": conexao.execute("SELECT COUNT(*) AS total FROM alerts WHERE lido = 0").fetchone()["total"],
             "stock_critico": conexao.execute("SELECT COUNT(*) AS total FROM stock WHERE quantidade < minimo").fetchone()["total"],
             "registos_auditoria": conexao.execute("SELECT COUNT(*) AS total FROM audit").fetchone()["total"],
+            "escalas_hoje": conexao.execute("SELECT COUNT(*) AS total FROM shifts WHERE data = date('now')").fetchone()["total"],
+            "pedidos_rh_pendentes": conexao.execute(
+                "SELECT COUNT(*) AS total FROM leave_requests WHERE estado IN ('PENDENTE_CHEFIA', 'PENDENTE_RH')"
+            ).fetchone()["total"],
+            "compras_pendentes": conexao.execute(
+                "SELECT COUNT(*) AS total FROM purchase_requests WHERE estado NOT IN ('RECEBIDA', 'REJEITADA')"
+            ).fetchone()["total"],
+            "empenhos_ativos": conexao.execute(
+                "SELECT COUNT(*) AS total FROM commitments WHERE estado = 'ATIVO'"
+            ).fetchone()["total"],
+            "mdt_pendentes": conexao.execute(
+                "SELECT COUNT(*) AS total FROM mdt_orders WHERE estado IN ('PENDENTE', 'RESULTADO_DISPONIVEL')"
+            ).fetchone()["total"],
         }
+
+
+@app.post("/api/rh/funcionarios", status_code=201)
+def criar_funcionario(
+    dados: FuncionarioModel,
+    usuario: dict = Depends(exigir("rh", "administrador")),
+) -> dict:
+    identificador = criar_id("FUN")
+    with conexao_aberta() as conexao:
+        conexao.execute(
+            "INSERT INTO staff (id, nome, perfil_funcional, unidade) VALUES (?, ?, ?, ?)",
+            (identificador, dados.nome.strip(), dados.perfil_funcional.strip(), dados.unidade.strip()),
+        )
+        registrar_auditoria(conexao, usuario, "FUNCIONARIO_CRIADO", identificador, novo=dados.model_dump())
+        conexao.commit()
+    return {"id": identificador, "nome": dados.nome.strip()}
+
+
+@app.get("/api/rh/funcionarios")
+def listar_funcionarios(
+    usuario: dict = Depends(exigir("rh", "chefia", "auditoria", "administrador")),
+) -> list[dict]:
+    with conexao_aberta() as conexao:
+        return em_lista(conexao.execute("SELECT * FROM staff ORDER BY unidade, nome").fetchall())
+
+
+@app.post("/api/rh/escalas", status_code=201)
+def criar_escala(
+    dados: EscalaModel,
+    usuario: dict = Depends(exigir("chefia", "rh", "administrador")),
+) -> dict:
+    turnos = {"MANHA", "TARDE", "NOITE"}
+    turno = dados.turno.strip().upper()
+    if turno not in turnos:
+        raise HTTPException(status_code=400, detail="Turno deve ser MANHA, TARDE ou NOITE")
+    with conexao_aberta() as conexao:
+        funcionario = conexao.execute("SELECT 1 FROM staff WHERE id = ? AND ativo = 1", (dados.staff_id,)).fetchone()
+        if not funcionario:
+            raise HTTPException(status_code=404, detail="Funcionario nao encontrado")
+        identificador = criar_id("ESC")
+        conexao.execute(
+            "INSERT INTO shifts (id, staff_id, data, turno, unidade, criado_por, criado_em) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (identificador, dados.staff_id, dados.data, turno, dados.unidade.strip(), usuario["id"], db.agora()),
+        )
+        registrar_auditoria(
+            conexao,
+            usuario,
+            "ESCALA_CRIADA",
+            identificador,
+            novo={"staff_id": dados.staff_id, "data": dados.data, "turno": turno},
+        )
+        conexao.commit()
+    return {"id": identificador, "estado": "PLANIFICADA"}
+
+
+@app.get("/api/rh/escalas")
+def listar_escalas(usuario: dict = Depends(usuario_atual)) -> list[dict]:
+    with conexao_aberta() as conexao:
+        return em_lista(
+            conexao.execute(
+                "SELECT s.*, f.nome AS funcionario_nome FROM shifts s JOIN staff f ON f.id = s.staff_id "
+                "ORDER BY s.data, s.turno"
+            ).fetchall()
+        )
+
+
+@app.post("/api/rh/pedidos", status_code=201)
+def criar_pedido_rh(dados: PedidoRhModel, usuario: dict = Depends(usuario_atual)) -> dict:
+    tipos = {"FERIAS", "FALTA", "TROCA_TURNO"}
+    tipo = dados.tipo.strip().upper()
+    if tipo not in tipos:
+        raise HTTPException(status_code=400, detail="Tipo deve ser FERIAS, FALTA ou TROCA_TURNO")
+    with conexao_aberta() as conexao:
+        funcionario = conexao.execute("SELECT 1 FROM staff WHERE id = ?", (dados.staff_id,)).fetchone()
+        if not funcionario:
+            raise HTTPException(status_code=404, detail="Funcionario nao encontrado")
+        identificador = criar_id("RH")
+        conexao.execute(
+            "INSERT INTO leave_requests (id, staff_id, tipo, inicio, fim, justificacao, estado, criado_por, criado_em) "
+            "VALUES (?, ?, ?, ?, ?, ?, 'PENDENTE_CHEFIA', ?, ?)",
+            (
+                identificador,
+                dados.staff_id,
+                tipo,
+                dados.inicio,
+                dados.fim,
+                dados.justificacao,
+                usuario["id"],
+                db.agora(),
+            ),
+        )
+        registrar_auditoria(conexao, usuario, "PEDIDO_RH_CRIADO", identificador, novo={"tipo": tipo})
+        conexao.commit()
+    return {"id": identificador, "estado": "PENDENTE_CHEFIA"}
+
+
+@app.get("/api/rh/pedidos")
+def listar_pedidos_rh(usuario: dict = Depends(usuario_atual)) -> list[dict]:
+    with conexao_aberta() as conexao:
+        return em_lista(
+            conexao.execute(
+                "SELECT p.*, f.nome AS funcionario_nome FROM leave_requests p JOIN staff f ON f.id = p.staff_id "
+                "ORDER BY p.criado_em DESC"
+            ).fetchall()
+        )
+
+
+@app.post("/api/rh/pedidos/{pedido_id}/aprovar")
+def aprovar_pedido_rh(
+    pedido_id: str,
+    dados: ParecerModel,
+    usuario: dict = Depends(exigir("chefia", "administrador")),
+) -> dict:
+    with conexao_aberta() as conexao:
+        pedido = obter_pedido_rh(conexao, pedido_id)
+        if pedido["estado"] != "PENDENTE_CHEFIA":
+            raise HTTPException(status_code=400, detail="Pedido nao esta pendente de chefia")
+        if pedido["criado_por"] == usuario["id"]:
+            raise HTTPException(status_code=403, detail="Segregacao de funcoes: nao podes aprovar o teu proprio pedido")
+        estado = "PENDENTE_RH" if dados.aprovado else "REJEITADO"
+        conexao.execute(
+            "UPDATE leave_requests SET estado = ?, aprovado_por = ? WHERE id = ?",
+            (estado, usuario["id"], pedido_id),
+        )
+        registrar_auditoria(
+            conexao,
+            usuario,
+            "PEDIDO_RH_APROVADO" if dados.aprovado else "PEDIDO_RH_REJEITADO",
+            pedido_id,
+            anterior={"estado": pedido["estado"]},
+            novo={"estado": estado, "parecer": dados.parecer},
+        )
+        conexao.commit()
+    return {"id": pedido_id, "estado": estado}
+
+
+@app.post("/api/rh/pedidos/{pedido_id}/homologar")
+def homologar_pedido_rh(
+    pedido_id: str,
+    usuario: dict = Depends(exigir("rh", "administrador")),
+) -> dict:
+    with conexao_aberta() as conexao:
+        pedido = obter_pedido_rh(conexao, pedido_id)
+        if pedido["estado"] != "PENDENTE_RH":
+            raise HTTPException(status_code=400, detail="Pedido nao esta pendente de RH")
+        if pedido["aprovado_por"] == usuario["id"]:
+            raise HTTPException(status_code=403, detail="Segregacao de funcoes: aprovacao e homologacao separadas")
+        conexao.execute(
+            "UPDATE leave_requests SET estado = 'HOMOLOGADO', homologado_por = ? WHERE id = ?",
+            (usuario["id"], pedido_id),
+        )
+        registrar_auditoria(conexao, usuario, "PEDIDO_RH_HOMOLOGADO", pedido_id)
+        registrar_evento(conexao, "PedidoRhHomologado", {"pedido_id": pedido_id})
+        conexao.commit()
+    return {"id": pedido_id, "estado": "HOMOLOGADO"}
+
+
+@app.post("/api/compras/requisicoes", status_code=201)
+def criar_requisicao(
+    dados: RequisicaoModel,
+    usuario: dict = Depends(usuario_atual),
+) -> dict:
+    identificador = criar_id("REQ")
+    with conexao_aberta() as conexao:
+        conexao.execute(
+            "INSERT INTO purchase_requests (id, descricao, quantidade, valor, unidade, solicitante_id, estado, criado_em) "
+            "VALUES (?, ?, ?, ?, ?, ?, 'SOLICITADA', ?)",
+            (
+                identificador,
+                dados.descricao.strip(),
+                dados.quantidade,
+                dados.valor,
+                dados.unidade.strip(),
+                usuario["id"],
+                db.agora(),
+            ),
+        )
+        registrar_auditoria(
+            conexao,
+            usuario,
+            "REQUISICAO_CRIADA",
+            identificador,
+            novo={"valor": dados.valor, "quantidade": dados.quantidade},
+        )
+        registrar_evento(conexao, "RequisicaoCriada", {"requisicao_id": identificador, "valor": dados.valor})
+        conexao.commit()
+    return {"id": identificador, "estado": "SOLICITADA", "alto_valor": dados.valor > LIMITE_ALCADA_1}
+
+
+@app.get("/api/compras/requisicoes")
+def listar_requisicoes(usuario: dict = Depends(usuario_atual)) -> list[dict]:
+    with conexao_aberta() as conexao:
+        return em_lista(conexao.execute("SELECT * FROM purchase_requests ORDER BY criado_em DESC").fetchall())
+
+
+@app.post("/api/compras/requisicoes/{requisicao_id}/validar-tecnica")
+def validar_tecnica(
+    requisicao_id: str,
+    dados: ParecerModel,
+    usuario: dict = Depends(exigir("medico", "enfermeiro", "administrador")),
+) -> dict:
+    with conexao_aberta() as conexao:
+        requisicao = obter_requisicao(conexao, requisicao_id)
+        if requisicao["estado"] != "SOLICITADA":
+            raise HTTPException(status_code=400, detail="Requisicao nao esta na fase de validacao tecnica")
+        if requisicao["solicitante_id"] == usuario["id"]:
+            raise HTTPException(status_code=403, detail="Segregacao de funcoes: quem solicita nao valida")
+        estado = "VALIDADA_TECNICAMENTE" if dados.aprovado else "REJEITADA"
+        conexao.execute(
+            "UPDATE purchase_requests SET validador_tecnico_id = ?, estado = ? WHERE id = ?",
+            (usuario["id"], estado, requisicao_id),
+        )
+        registrar_auditoria(
+            conexao,
+            usuario,
+            "VALIDACAO_TECNICA",
+            requisicao_id,
+            anterior={"estado": requisicao["estado"]},
+            novo={"estado": estado, "parecer": dados.parecer},
+        )
+        conexao.commit()
+    return {"id": requisicao_id, "estado": estado}
+
+
+@app.post("/api/compras/requisicoes/{requisicao_id}/verificar-orcamento")
+def verificar_orcamento(
+    requisicao_id: str,
+    usuario: dict = Depends(exigir("financeiro", "administrador")),
+) -> dict:
+    with conexao_aberta() as conexao:
+        requisicao = obter_requisicao(conexao, requisicao_id)
+        if requisicao["estado"] != "VALIDADA_TECNICAMENTE":
+            raise HTTPException(status_code=400, detail="Requisicao nao validada tecnicamente")
+        orcamento = orcamento_atual(conexao)
+        disponivel = orcamento["total"] - orcamento["executado"]
+        if requisicao["valor"] > disponivel:
+            raise HTTPException(status_code=400, detail="Sem cabimento orcamental")
+        if requisicao["validador_tecnico_id"] == usuario["id"]:
+            raise HTTPException(status_code=403, detail="Segregacao de funcoes: validador nao verifica orcamento")
+        conexao.execute(
+            "UPDATE purchase_requests SET verificado_orcamento_id = ?, estado = 'ORCAMENTO_VERIFICADO' WHERE id = ?",
+            (usuario["id"], requisicao_id),
+        )
+        registrar_auditoria(
+            conexao,
+            usuario,
+            "CABIMENTO_VERIFICADO",
+            requisicao_id,
+            novo={"valor": requisicao["valor"], "disponivel": disponivel},
+        )
+        conexao.commit()
+    return {"id": requisicao_id, "estado": "ORCAMENTO_VERIFICADO", "disponivel": disponivel}
+
+
+@app.post("/api/compras/requisicoes/{requisicao_id}/parecer")
+def parecer_conformidade(
+    requisicao_id: str,
+    dados: ParecerModel,
+    usuario: dict = Depends(exigir("juridico", "auditoria", "administrador")),
+) -> dict:
+    with conexao_aberta() as conexao:
+        requisicao = obter_requisicao(conexao, requisicao_id)
+        if requisicao["estado"] != "ORCAMENTO_VERIFICADO":
+            raise HTTPException(status_code=400, detail="Requisicao nao esta na fase de parecer")
+        estado = "PARECER_CONFORME" if dados.aprovado else "REJEITADA"
+        conexao.execute(
+            "UPDATE purchase_requests SET parecer_juridico_id = ?, estado = ? WHERE id = ?",
+            (usuario["id"], estado, requisicao_id),
+        )
+        registrar_auditoria(
+            conexao,
+            usuario,
+            "PARECER_CONFORMIDADE",
+            requisicao_id,
+            anterior={"estado": requisicao["estado"]},
+            novo={"estado": estado, "parecer": dados.parecer},
+        )
+        conexao.commit()
+    return {"id": requisicao_id, "estado": estado}
+
+
+@app.post("/api/compras/requisicoes/{requisicao_id}/aprovar")
+def aprovar_requisicao(
+    requisicao_id: str,
+    usuario: dict = Depends(exigir("administrador", "financeiro", "gestor")),
+) -> dict:
+    with conexao_aberta() as conexao:
+        requisicao = obter_requisicao(conexao, requisicao_id)
+        alto_valor = requisicao["valor"] > LIMITE_ALCADA_1
+        estado_anterior = requisicao["estado"]
+        estado_necessario = "PARECER_CONFORME" if alto_valor else "ORCAMENTO_VERIFICADO"
+        if estado_anterior != estado_necessario:
+            raise HTTPException(status_code=400, detail=f"Requisicao nao esta na fase de aprovacao ({estado_necessario})")
+        if alto_valor and usuario["perfil"] != "administrador":
+            raise HTTPException(status_code=403, detail="Alto valor exige aprovacao da Direcao Geral")
+        if usuario["id"] in {requisicao["solicitante_id"], requisicao["verificado_orcamento_id"]}:
+            raise HTTPException(status_code=403, detail="Segregacao de funcoes: aprovador ja participou do processo")
+        orcamento = orcamento_atual(conexao)
+        if requisicao["valor"] > orcamento["total"] - orcamento["executado"]:
+            raise HTTPException(status_code=400, detail="Sem cabimento orcamental")
+        conexao.execute(
+            "UPDATE purchase_requests SET aprovador_id = ?, estado = 'EMPENHADA' WHERE id = ?",
+            (usuario["id"], requisicao_id),
+        )
+        conexao.execute(
+            "INSERT INTO commitments (id, purchase_id, valor, estado, criado_por, criado_em) "
+            "VALUES (?, ?, ?, 'ATIVO', ?, ?)",
+            (criar_id("EMP"), requisicao_id, requisicao["valor"], usuario["id"], db.agora()),
+        )
+        conexao.execute(
+            "UPDATE budget SET executado = executado + ?, atualizado_por = ?, atualizado_em = ? WHERE id = ?",
+            (requisicao["valor"], usuario["id"], db.agora(), orcamento["id"]),
+        )
+        registrar_auditoria(
+            conexao,
+            usuario,
+            "REQUISICAO_APROVADA",
+            requisicao_id,
+            anterior={"estado": estado_anterior},
+            novo={"estado": "EMPENHADA", "valor": requisicao["valor"]},
+        )
+        registrar_evento(conexao, "RequisicaoAprovada", {"requisicao_id": requisicao_id})
+        conexao.commit()
+    return {"id": requisicao_id, "estado": "EMPENHADA"}
+
+
+@app.post("/api/compras/requisicoes/{requisicao_id}/receber")
+def receber_requisicao(
+    requisicao_id: str,
+    dados: RececaoModel,
+    usuario: dict = Depends(exigir("logistica", "farmacia", "administrador")),
+) -> dict:
+    with conexao_aberta() as conexao:
+        requisicao = obter_requisicao(conexao, requisicao_id)
+        if requisicao["estado"] != "EMPENHADA":
+            raise HTTPException(status_code=400, detail="Requisicao nao esta empenhada")
+        participantes = {
+            requisicao["solicitante_id"],
+            requisicao["aprovador_id"],
+            requisicao["validador_tecnico_id"],
+        }
+        if usuario["id"] in participantes:
+            raise HTTPException(status_code=403, detail="Segregacao de funcoes: rececao por terceiro")
+        conexao.execute(
+            "UPDATE purchase_requests SET rececionista_id = ?, estado = 'RECEBIDA' WHERE id = ?",
+            (usuario["id"], requisicao_id),
+        )
+        registrar_auditoria(
+            conexao,
+            usuario,
+            "MERCADORIA_RECEBIDA",
+            requisicao_id,
+            novo={"conferencia": dados.conferencia},
+        )
+        registrar_evento(conexao, "MercadoriaRecebida", {"requisicao_id": requisicao_id})
+        conexao.commit()
+    return {"id": requisicao_id, "estado": "RECEBIDA"}
+
+
+@app.get("/api/financeiro/orcamento")
+def ver_orcamento(usuario: dict = Depends(usuario_atual)) -> dict:
+    with conexao_aberta() as conexao:
+        return dict(orcamento_atual(conexao))
+
+
+@app.post("/api/financeiro/orcamento")
+def atualizar_orcamento(
+    dados: BudgetModel,
+    usuario: dict = Depends(exigir("financeiro", "administrador")),
+) -> dict:
+    with conexao_aberta() as conexao:
+        orcamento = orcamento_atual(conexao)
+        if dados.total < orcamento["executado"]:
+            raise HTTPException(status_code=400, detail="Total nao pode ser inferior ao executado")
+        conexao.execute(
+            "UPDATE budget SET total = ?, atualizado_por = ?, atualizado_em = ? WHERE id = ?",
+            (dados.total, usuario["id"], db.agora(), orcamento["id"]),
+        )
+        registrar_auditoria(
+            conexao,
+            usuario,
+            "ORCAMENTO_ATUALIZADO",
+            orcamento["id"],
+            anterior={"total": orcamento["total"]},
+            novo={"total": dados.total},
+        )
+        conexao.commit()
+    return {"id": orcamento["id"], "total": dados.total}
+
+
+@app.get("/api/financeiro/empenhos")
+def listar_empenhos(usuario: dict = Depends(exigir("financeiro", "auditoria", "administrador"))) -> list[dict]:
+    with conexao_aberta() as conexao:
+        return em_lista(
+            conexao.execute(
+                "SELECT c.*, r.descricao FROM commitments c JOIN purchase_requests r ON r.id = c.purchase_id "
+                "ORDER BY c.criado_em DESC"
+            ).fetchall()
+        )
+
+
+@app.get("/api/financeiro/relatorio")
+def relatorio_financeiro(usuario: dict = Depends(exigir("financeiro", "auditoria", "administrador"))) -> dict:
+    with conexao_aberta() as conexao:
+        orcamento = orcamento_atual(conexao)
+        empenhos = conexao.execute("SELECT COUNT(*) AS total, COALESCE(SUM(valor), 0) AS valor FROM commitments").fetchone()
+        return {
+            "exercicio": orcamento["exercicio"],
+            "total": orcamento["total"],
+            "executado": orcamento["executado"],
+            "disponivel": orcamento["total"] - orcamento["executado"],
+            "empenhos_ativos": empenhos["total"],
+            "valor_empenhado": empenhos["valor"],
+        }
+
+
+@app.post("/api/mdt/pedidos", status_code=201)
+def criar_pedido_mdt(
+    dados: MdtPedidoModel,
+    usuario: dict = Depends(exigir("medico", "administrador")),
+) -> dict:
+    tipo = dados.tipo.strip().upper()
+    if tipo not in PERFIS_MDT:
+        raise HTTPException(status_code=400, detail="Tipo deve ser LABORATORIO, IMAGEM ou FISIOTERAPIA")
+    with conexao_aberta() as conexao:
+        obter_episodio(conexao, dados.episodio_id)
+        identificador = criar_id("MDT")
+        conexao.execute(
+            "INSERT INTO mdt_orders (id, episode_id, tipo, descricao, medico_id, estado, criado_em) "
+            "VALUES (?, ?, ?, ?, ?, 'PENDENTE', ?)",
+            (identificador, dados.episodio_id, tipo, dados.descricao.strip(), usuario["id"], db.agora()),
+        )
+        registrar_auditoria(conexao, usuario, "MDT_PEDIDO_CRIADO", identificador, novo={"tipo": tipo})
+        registrar_evento(conexao, "PedidoMdtCriado", {"pedido_id": identificador, "tipo": tipo})
+        conexao.commit()
+    return {"id": identificador, "estado": "PENDENTE"}
+
+
+@app.get("/api/mdt/pedidos")
+def listar_pedidos_mdt(usuario: dict = Depends(usuario_atual)) -> list[dict]:
+    with conexao_aberta() as conexao:
+        return em_lista(
+            conexao.execute(
+                "SELECT m.*, e.patient_id FROM mdt_orders m JOIN episodes e ON e.id = m.episode_id "
+                "ORDER BY m.criado_em DESC"
+            ).fetchall()
+        )
+
+
+@app.post("/api/mdt/pedidos/{pedido_id}/resultado")
+def registar_resultado_mdt(
+    pedido_id: str,
+    dados: MdtResultadoModel,
+    usuario: dict = Depends(usuario_atual),
+) -> dict:
+    with conexao_aberta() as conexao:
+        pedido = obter_pedido_mdt(conexao, pedido_id)
+        if pedido["estado"] != "PENDENTE":
+            raise HTTPException(status_code=400, detail="Pedido nao esta pendente")
+        perfil_necessario = PERFIS_MDT[pedido["tipo"]]
+        if usuario["perfil"] != perfil_necessario and usuario["perfil"] != "administrador":
+            raise HTTPException(status_code=403, detail=f"Perfil {perfil_necessario} necessario para este exame")
+        if pedido["medico_id"] == usuario["id"]:
+            raise HTTPException(status_code=403, detail="Segregacao de funcoes: prescritor nao valida resultado")
+        conexao.execute(
+            "UPDATE mdt_orders SET resultado = ?, tecnico_id = ?, estado = 'RESULTADO_DISPONIVEL', concluido_em = ? "
+            "WHERE id = ?",
+            (dados.resultado.strip(), usuario["id"], db.agora(), pedido_id),
+        )
+        registrar_auditoria(
+            conexao,
+            usuario,
+            "MDT_RESULTADO_REGISTADO",
+            pedido_id,
+            novo={"resultado": dados.resultado.strip()},
+        )
+        registrar_evento(conexao, "ResultadoMdtDisponivel", {"pedido_id": pedido_id})
+        conexao.commit()
+    return {"id": pedido_id, "estado": "RESULTADO_DISPONIVEL"}
+
+
+@app.post("/api/mdt/pedidos/{pedido_id}/validar")
+def validar_resultado_mdt(
+    pedido_id: str,
+    usuario: dict = Depends(exigir("medico", "administrador")),
+) -> dict:
+    with conexao_aberta() as conexao:
+        pedido = obter_pedido_mdt(conexao, pedido_id)
+        if pedido["estado"] != "RESULTADO_DISPONIVEL":
+            raise HTTPException(status_code=400, detail="Resultado ainda nao disponivel")
+        conexao.execute(
+            "UPDATE mdt_orders SET validado_por = ?, estado = 'VALIDADO' WHERE id = ?",
+            (usuario["id"], pedido_id),
+        )
+        registrar_auditoria(conexao, usuario, "MDT_RESULTADO_VALIDADO", pedido_id)
+        registrar_evento(conexao, "ResultadoMdtValidado", {"pedido_id": pedido_id})
+        conexao.commit()
+    return {"id": pedido_id, "estado": "VALIDADO"}
 
 
 app.mount("/static", StaticFiles(directory=DIRETORIO_STATIC), name="static")

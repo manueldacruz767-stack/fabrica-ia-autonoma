@@ -56,10 +56,20 @@ Logins de demonstracao:
 | `limpeza` | `limpeza123` | Higienizacao |
 | `gestor` | `gestor123` | Gestor de Leitos |
 | `auditor` | `auditor123` | Auditoria Interna |
+| `rh` | `rh123` | Recursos Humanos |
+| `chefe` | `chefe123` | Chefia de Servico |
+| `compras` | `compras123` | Compras e Aprovisionamento |
+| `financeiro` | `financeiro123` | Financas e Contabilidade |
+| `juridico` | `juridico123` | Assessoria Juridica |
+| `logistica` | `logistica123` | Logistica e Armazem |
+| `laboratorio` | `laboratorio123` | Laboratorio |
+| `imagiologia` | `imagiologia123` | Imagiologia |
+| `fisioterapia` | `fisioterapia123` | Reabilitacao |
 
-Fluxo suportado na interface: registar paciente (incluindo desconhecido), abrir episodio, triagem com cor de Manchester, alocar leito, registar atendimento, prescrever, dispensar com segregacao de funcoes, dar alta medica (dispara higienizacao), concluir higienizacao e concluir alta administrativa. O painel mostra KPIs e a area de auditoria mostra a cadeia de hashes e os eventos de dominio.
+Fluxo suportado na interface: registar paciente (incluindo desconhecido), abrir episodio, triagem com cor de Manchester, alocar leito, registar atendimento, prescrever, dispensar com segregacao de funcoes, dar alta medica (dispara higienizacao), concluir higienizacao e concluir alta administrativa. Tambem inclui escalas e pedidos de RH, requisicoes com validacao tecnica, cabimento, parecer juridico, alcaladas (ate 5000 basta a Direcao Administrativa; acima disso exige Direcao Geral)
+, empenho e rececao por terceiro, orcamento/empenhos financeiros e pedidos MDT com resultado e validacao medica. O painel mostra KPIs e a area de auditoria mostra a cadeia de hashes e os eventos de dominio.
 
-Endpoints principais: `/api/dashboard`, `/api/pacientes`, `/api/episodios`, `/api/fila`, `/api/leitos`, `/api/stock`, `/api/prescricoes/pendentes`, `/api/auditoria`, `/api/eventos`. A documentacao interativa da API esta em `/docs`.
+Endpoints principais: `/api/dashboard`, `/api/pacientes`, `/api/episodios`, `/api/fila`, `/api/leitos`, `/api/stock`, `/api/prescricoes/pendentes`, `/api/rh/*`, `/api/compras/*`, `/api/financeiro/*`, `/api/mdt/*`, `/api/auditoria`, `/api/eventos`. A documentacao interativa da API esta em `/docs`.
 
 Testes do app:
 
