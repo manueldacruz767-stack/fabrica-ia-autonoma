@@ -89,15 +89,25 @@ Testes do app:
 python -m unittest tests.test_app -v
 ```
 
+## Containerizacao e observabilidade
+
+```bash
+docker compose up --build
+```
+
+O compose sobe a API em `http://127.0.0.1:8000`, o consumidor do outbox, sidecars de PostgreSQL/Redis/RabbitMQ para migracao incremental e Prometheus/Grafana. A saude da aplicacao esta em `/health`, as metricas Prometheus em `/metrics`, e os eventos pendentes podem ser publicados por `POST /api/eventos/publicar` ou pelo consumidor `python -m app.consumidor_outbox`. Os logs JSON incluem `correlation_id`, que Tambem e devolvido no cabecalho `X-Correlation-ID` e pode ser enviado pelo cliente no pedido.
+
 ## GitHub Actions
 
-Existem tres fluxos, todos corrigidos e ativos:
+Existem cinco fluxos, todos corrigidos e ativos:
 
 | Workflow | Gatilho | Entrada principal | Saida |
 | --- | --- | --- | --- |
 | `fabrica_24h.yml` | diario as 08:00 UTC + manual | `vars.PROJETO_IDEIA` | `projeto_final.md` |
 | `fabricar.yml` | manual | `projeto_ideia` | `projeto_final.md` |
 | `main.yml` | manual | `ideia_projeto` | `relatorio_agente.md` |
+| `app.yml` | alteracoes em `app/`, `tests/`, requisitos do app e CI | testes + compileall | validacao do HIS |
+| `seguranca.yml` | alteracoes em `app/`, `tests/`, requisitos e CI | bandit + procura de segredos | validacao de seguranca |
 
 Secrets necessarios em **Settings > Secrets and variables > Actions**:
 

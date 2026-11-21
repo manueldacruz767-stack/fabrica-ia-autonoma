@@ -41,6 +41,12 @@
       <button data-secao="compras">Compras</button>
       <button data-secao="financeiro">Financas</button>
       <button data-secao="mdt">MDT</button>
+      <button data-secao="agenda">Agenda</button>
+      <button data-secao="cuidados">Cuidados e desfechos</button>
+      <button data-secao="logistica">Logistica e contratos</button>
+      <button data-secao="rhAdmin">RH administrativo</button>
+      <button data-secao="governa" data-perfis="auditoria,administrador">Governa e assinaturas</button>
+      <button data-secao="observabilidade" data-perfis="administrador,ti,auditoria">Observabilidade</button>
       <button data-secao="auditoria">Auditoria</button>
       <button id="botaoSair">Sair</button>
     </nav>
@@ -239,7 +245,8 @@
         <input id="reqParecer" placeholder="Parecer tecnico ou juridico">
         <button id="botaoValidarTecnica" type="button">Validar tecnica</button>
         <button id="botaoVerificarOrcamento" type="button">Verificar orcamento</button>
-        <button id="botaoParecer" type="button">Parecer conformidade</button>
+        <select id="reqTipoParecer"><option>JURIDICO</option><option>AUDITORIA_INTERNA</option></select>
+        <button id="botaoParecer" type="button">Registar parecer</button>
         <button id="botaoAprovarCompra" type="button">Aprovar</button>
         <button id="botaoReceber" type="button">Receber mercadoria</button>
       </div>
@@ -271,6 +278,151 @@
         <button id="botaoValidarMdt" type="button">Validar resultado</button>
       </div>
       <div id="tabelaPedidosMdt"></div>
+    </section>
+
+    <section id="agenda" class="secao" hidden>
+      <h2>Agendamento, vagas e retornos</h2>
+      <form id="formAgenda" class="linha-form">
+        <select id="agePaciente" required></select>
+        <input id="ageEspecialidade" placeholder="Especialidade" required>
+        <input id="ageMedico" placeholder="ID do medico">
+        <input id="ageData" type="datetime-local" required>
+        <button type="submit">Agendar consulta</button>
+      </form>
+      <div class="linha-form">
+        <select id="ageConsulta"></select>
+        <button id="botaoCheckInConsulta" type="button">Check-in</button>
+        <input id="ageDataRetorno" type="datetime-local">
+        <button id="botaoRetorno" type="button">Marcar retorno</button>
+      </div>
+      <div class="linha-form">
+        <input id="ageEspecialidadeVagas" placeholder="Especialidade para vagas" value="Clinica Geral">
+        <input id="ageDataVagas" type="date">
+        <button id="botaoVagas" type="button">Consultar vagas</button>
+        <span id="vagasConsulta"></span>
+      </div>
+      <div id="tabelaConsultas"></div>
+    </section>
+
+    <section id="cuidados" class="secao" hidden>
+      <h2>Evolucao, balanco, sumario e desfechos</h2>
+      <div class="linha-form">
+        <select id="cuiEpisodio" required></select>
+      </div>
+      <form id="formEvolucao" class="linha-form">
+        <input id="evoNota" placeholder="Nota clinica" required>
+        <input id="evoConduta" placeholder="Conduta" required>
+        <input id="evoProxima" type="datetime-local" required>
+        <button type="submit">Registar evolucao</button>
+      </form>
+      <form id="formBalanco" class="linha-form">
+        <input id="balEntradas" type="number" min="0" placeholder="Entradas ml" required>
+        <input id="balSaidas" type="number" min="0" placeholder="Saidas ml" required>
+        <input id="balDieta" placeholder="Dieta" required>
+        <select id="balTurno"><option>MANHA</option><option>TARDE</option><option>NOITE</option></select>
+        <button type="submit">Registar balanco</button>
+      </form>
+      <form id="formSumario" class="linha-form">
+        <input id="sumDiagnostico" placeholder="Diagnostico" required>
+        <input id="sumEvolucao" placeholder="Evolucao" required>
+        <input id="sumOrientacoes" placeholder="Orientacoes" required>
+        <input id="sumMedicamentos" placeholder="Medicamentos" required>
+        <button type="submit">Criar sumario assinado</button>
+      </form>
+      <form id="formTransferencia" class="linha-form">
+        <input id="transDestino" placeholder="Hospital destino" required>
+        <input id="transMotivo" placeholder="Motivo" required>
+        <input id="transVeiculo" placeholder="Veiculo" required>
+        <button type="submit">Registar transferencia</button>
+      </form>
+      <form id="formObito" class="linha-form">
+        <input id="obiCausa" placeholder="Causa" required>
+        <input id="obiData" type="datetime-local" required>
+        <button type="submit">Registar obito</button>
+      </form>
+    </section>
+
+    <section id="logistica" class="secao" hidden>
+      <h2>Stock setorial, contratos e cotacoes</h2>
+      <form id="formMovimento" class="linha-form">
+        <input id="movUnidade" placeholder="Codigo da unidade" value="LOG" required>
+        <input id="movItem" placeholder="Item" required>
+        <select id="movTipo"><option>ENTRADA</option><option>SAIDA</option><option>TRANSFERENCIA</option></select>
+        <input id="movQuantidade" type="number" min="1" placeholder="Quantidade" required>
+        <input id="movDestino" placeholder="Unidade destino">
+        <button type="submit">Movimentar</button>
+      </form>
+      <form id="formContrato" class="linha-form">
+        <input id="ctrFornecedor" placeholder="Fornecedor" required>
+        <input id="ctrObjeto" placeholder="Objeto" required>
+        <input id="ctrValor" type="number" min="0.01" step="0.01" placeholder="Valor" required>
+        <input id="ctrInicio" type="date" required>
+        <input id="ctrFim" type="date" required>
+        <button type="submit">Criar contrato assinado</button>
+      </form>
+      <form id="formCotacao" class="linha-form">
+        <input id="cotDescricao" placeholder="Descricao" required>
+        <input id="cotQuantidade" type="number" min="1" placeholder="Quantidade" required>
+        <input id="cotEstimativa" type="number" min="0.01" step="0.01" placeholder="Estimativa" required>
+        <button type="submit">Criar cotacao</button>
+      </form>
+      <form id="formProposta" class="linha-form">
+        <select id="propCotacao" required></select>
+        <input id="propFornecedor" placeholder="Fornecedor" required>
+        <input id="propValor" type="number" min="0.01" step="0.01" placeholder="Valor" required>
+        <input id="propPrazo" placeholder="Prazo" required>
+        <button type="submit">Adicionar proposta</button>
+      </form>
+      <div class="linha-form">
+        <select id="selCotacao"></select>
+        <select id="selProposta"></select>
+        <button id="botaoSelecionarProposta" type="button">Selecionar proposta</button>
+      </div>
+      <div id="tabelaStockSetorial"></div>
+      <div id="tabelaContratos"></div>
+      <div id="tabelaCotacoes"></div>
+    </section>
+
+    <section id="rhAdmin" class="secao" hidden>
+      <h2>Folha salarial e ponto</h2>
+      <form id="formFolha" class="linha-form">
+        <input id="folFuncionario" placeholder="Funcionario" required>
+        <input id="folMes" placeholder="AAAAMM" required>
+        <input id="folBase" type="number" min="0.01" step="0.01" placeholder="Salario base" required>
+        <input id="folDescontos" type="number" min="0" step="0.01" placeholder="Descontos" required>
+        <button type="submit">Calcular folha</button>
+      </form>
+      <form id="formPonto" class="linha-form">
+        <input id="ptoFuncionario" placeholder="Funcionario" required>
+        <input id="ptoData" type="date" required>
+        <input id="ptoEntrada" placeholder="Entrada" required>
+        <input id="ptoSaida" placeholder="Saida">
+        <button type="submit">Registar ponto</button>
+      </form>
+      <div id="tabelaFolhas"></div>
+      <div id="tabelaPonto"></div>
+    </section>
+
+    <section id="governa" class="secao" hidden>
+      <h2>Unidades organizacionais e documentos assinados</h2>
+      <div id="tabelaUnidades"></div>
+      <form id="formAssinatura" class="linha-form">
+        <select id="assTipo">
+          <option>RECEITA_MEDICA</option><option>SUMARIO_ALTA</option><option>EVOLUCAO_CLINICA</option>
+          <option>PARECER_JURIDICO</option><option>PARECER_AUDITORIA</option><option>CONTRATO_ALTA_VALOR</option>
+        </select>
+        <input id="assReferencia" placeholder="Referencia" required>
+        <input id="assConteudo" placeholder="Conteudo" required>
+        <button type="submit">Assinar documento</button>
+      </form>
+      <div id="tabelaDocumentos"></div>
+    </section>
+
+    <section id="observabilidade" class="secao" hidden>
+      <h2>Saude, metricas e eventos</h2>
+      <div id="estadoSaude"></div>
+      <pre id="metricasResumo"></pre>
+      <button id="botaoPublicarEventos" type="button">Publicar eventos pendentes</button>
     </section>
 
     <section id="auditoria" class="secao" hidden>

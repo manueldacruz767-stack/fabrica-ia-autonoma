@@ -809,6 +809,10 @@ class TestesGovernaDocumentosEServicos(unittest.TestCase):
         eventos = self.cliente.get("/api/eventos", headers=self.cabecalho(admin)).json()
         self.assertTrue(any(evento["estado"] == "PUBLICADO" for evento in eventos))
 
+        pagina = self.cliente.get("/")
+        for secao in ("agenda", "cuidados", "logistica", "rhAdmin", "governa", "observabilidade"):
+            self.assertIn(f'data-secao="{secao}"', pagina.text)
+
     def test_agendamento_stock_contratos_cotacoes_e_rh(self):
         admin = self.token("admin", "admin123")
         rececionista = self.token("rececionista", "rececionista123")

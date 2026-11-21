@@ -2379,6 +2379,19 @@ def listar_cotacoes(usuario: dict = Depends(exigir("compras", "financeiro", "aud
         return em_lista(conexao.execute("SELECT * FROM cotacoes ORDER BY criado_em DESC").fetchall())
 
 
+@app.get("/api/cotacoes/{cotacao_id}/propostas")
+def listar_propostas(
+    cotacao_id: str,
+    usuario: dict = Depends(exigir("compras", "financeiro", "auditoria", "administrador")),
+) -> list[dict]:
+    with conexao_aberta() as conexao:
+        return em_lista(
+            conexao.execute(
+                "SELECT * FROM propostas_fornecedores WHERE cotacao_id = ? ORDER BY valor", (cotacao_id,)
+            ).fetchall()
+        )
+
+
 @app.post("/api/cotacoes/{cotacao_id}/propostas", status_code=201)
 def adicionar_proposta(
     cotacao_id: str,
