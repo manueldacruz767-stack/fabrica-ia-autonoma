@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HIS - Sistema de Gestao Hospitalar</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1>HIS - Hospital Publico</h1>
+      <p>MVP operacional: urgencia, triagem, prescricao, stock, leitos e auditoria.</p>
+    </div>
+    <div id="sessao"></div>
+  </header>
+
+  <main id="loginView">
+    <form id="formLogin" class="cartao">
+      <h2>Iniciar sessao</h2>
+      <label>Utilizador<input id="loginUsername" value="enfermeiro" required></label>
+      <label>Palavra-passe<input id="loginPassword" type="password" value="enfermeiro123" required></label>
+      <button type="submit">Entrar</button>
+      <p class="nota">Demonstracao: admin/admin123, medico/medico123, enfermeiro/enfermeiro123, farmacia/farmacia123, limpeza/limpeza123, gestor/gestor123, auditor/auditor123.</p>
+      <p id="erroLogin" class="erro"></p>
+    </form>
+  </main>
+
+  <main id="appView" hidden>
+    <nav id="navegacao">
+      <button data-secao="painel">Painel</button>
+      <button data-secao="pacientes">Pacientes</button>
+      <button data-secao="episodios">Episodios</button>
+      <button data-secao="fila">Fila medica</button>
+      <button data-secao="leitos">Leitos</button>
+      <button data-secao="stock">Stock e alertas</button>
+      <button data-secao="auditoria">Auditoria</button>
+      <button id="botaoSair">Sair</button>
+    </nav>
+    <p id="mensagem" class="mensagem"></p>
+
+    <section id="painel" class="secao">
+      <h2>Painel operacional</h2>
+      <div id="dashboard" class="grade-cartoes"></div>
+    </section>
+
+    <section id="pacientes" class="secao" hidden>
+      <h2>Admissao de pacientes</h2>
+      <form id="formPaciente" class="linha-form">
+        <input id="pacNome" placeholder="Nome do paciente" required>
+        <input id="pacDocumento" placeholder="Documento (opcional)">
+        <input id="pacNascimento" placeholder="Data nascimento AAAA-MM-DD">
+        <label class="caixa"><input id="pacDesconhecido" type="checkbox"> Paciente desconhecido</label>
+        <button type="submit">Registar paciente</button>
+      </form>
+      <div id="tabelaPacientes"></div>
+    </section>
+
+    <section id="episodios" class="secao" hidden>
+      <h2>Episodios e jornada clinica</h2>
+      <form id="formEpisodio" class="linha-form">
+        <select id="episPaciente" required></select>
+        <select id="episTipo"><option value="URGENCIA">Urgencia</option><option value="AMBULATORIO">Ambulatorio</option></select>
+        <button type="submit">Abrir episodio</button>
+      </form>
+      <form id="formTriagem" class="linha-form">
+        <select id="triEpisodio" required></select>
+        <input id="triQueixa" placeholder="Queixa principal" required>
+        <input id="triSinais" placeholder="Sinais vitais" required>
+        <select id="triCor"><option>VERMELHO</option><option>LARANJA</option><option selected>AMARELO</option><option>VERDE</option><option>AZUL</option></select>
+        <button type="submit">Registar triagem</button>
+      </form>
+      <form id="formAtendimento" class="linha-form">
+        <select id="ateEpisodio" required></select>
+        <input id="ateAnamnese" placeholder="Anamnese" required>
+        <input id="ateHipotese" placeholder="Hipoteses diagnosticas" required>
+        <button type="submit">Registar atendimento</button>
+      </form>
+      <form id="formPrescricao" class="linha-form">
+        <select id="preEpisodio" required></select>
+        <input id="preMedicamento" placeholder="Medicamento" required>
+        <input id="preDose" placeholder="Dose (ex.: 500mg)" required>
+        <button type="submit">Prescrever</button>
+      </form>
+      <div class="linha-form">
+        <select id="acaoEpisodio"></select>
+        <button id="botaoAlta" type="button">Dar alta medica</button>
+        <button id="botaoAltaAdm" type="button">Concluir alta administrativa</button>
+        <button id="botaoProntuario" type="button">Ver prontuario</button>
+        <input id="breakJustificacao" placeholder="Justificacao de emergencia">
+        <button id="botaoBreakGlass" type="button">Acesso de emergencia</button>
+      </div>
+      <pre id="prontuario"></pre>
+      <div id="tabelaEpisodios"></div>
+    </section>
+
+    <section id="fila" class="secao" hidden>
+      <h2>Fila medica por prioridade</h2>
+      <div id="tabelaFila"></div>
+    </section>
+
+    <section id="leitos" class="secao" hidden>
+      <h2>Gestao de leitos</h2>
+      <form id="formAlocar" class="linha-form">
+        <select id="aloLeito" required></select>
+        <select id="aloEpisodio" required></select>
+        <button type="submit">Alocar leito</button>
+      </form>
+      <div id="tabelaLeitos"></div>
+      <h3>Higienizacao pendente</h3>
+      <div id="listaHigienizacao"></div>
+    </section>
+
+    <section id="stock" class="secao" hidden>
+      <h2>Stock, farmacia e alertas</h2>
+      <form id="formStock" class="linha-form">
+        <input id="stkMedicamento" placeholder="Medicamento" required>
+        <input id="stkQuantidade" type="number" min="0" placeholder="Quantidade" required>
+        <input id="stkMinimo" type="number" min="0" placeholder="Minimo" required>
+        <button type="submit">Atualizar stock</button>
+      </form>
+      <div id="tabelaStock"></div>
+      <h3>Prescricoes pendentes</h3>
+      <div id="listaPrescricoes"></div>
+      <h3>Alertas</h3>
+      <div id="listaAlertas"></div>
+    </section>
+
+    <section id="auditoria" class="secao" hidden>
+      <h2>Trilha de auditoria</h2>
+      <div id="tabelaAuditoria"></div>
+      <h3>Eventos de dominio</h3>
+      <div id="tabelaEventos"></div>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>

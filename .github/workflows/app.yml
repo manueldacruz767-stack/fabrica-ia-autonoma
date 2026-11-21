@@ -1,0 +1,46 @@
+name: Testes do App Hospitalar
+
+on:
+  push:
+    paths:
+      - 'app/**'
+      - 'tests/test_app.py'
+      - 'requirements-app.txt'
+      - 'run_app.py'
+      - '.github/workflows/app.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: app-testes-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  testar-app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-app.txt
+
+      - name: Testar API e fluxos
+        env:
+          HIS_DB_PATH: /tmp/his-test.db
+        run: python -m unittest tests.test_app -v
+
+      - name: Verificar sintaxe
+        run: python -m compileall -q app run_app.py

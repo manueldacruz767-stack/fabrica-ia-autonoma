@@ -34,6 +34,39 @@ python executar_agente.py --dry-run --agente devops
 
 Opcoes uteis: `--contexto` carrega um ficheiro ou diretorio de `.md` como documentos de base (ex.: `contexto/hospital`), `--modelo` escolhe o modelo Gemini preferido, `--tentativas` define repeticoes por modelo, `--pesquisa` ativa a pesquisa Serper, `--comando` solicita um comando de sistema.
 
+## App hospitalar (MVP executavel)
+
+O plano gerado em `projeto_final.md` foi transformado numa aplicacao real e auto-contida: API FastAPI, interface web, SQLite, RBAC, trilha de auditoria com hash, fila de Manchester, stock, leitos e higienizacao.
+
+```bash
+python -m pip install -r requirements-app.txt
+python run_app.py
+```
+
+Abre `http://127.0.0.1:8000`. Para usar outra porta: `HIS_PORT=8080 python run_app.py`. A base de dados e criada em `data/his.db` (podes alterar com `HIS_DB_PATH`).
+
+Logins de demonstracao:
+
+| Utilizador | Palavra-passe | Perfil |
+| --- | --- | --- |
+| `admin` | `admin123` | Administrador Geral |
+| `medico` | `medico123` | Medico |
+| `enfermeiro` | `enfermeiro123` | Enfermeiro |
+| `farmacia` | `farmacia123` | Farmacia |
+| `limpeza` | `limpeza123` | Higienizacao |
+| `gestor` | `gestor123` | Gestor de Leitos |
+| `auditor` | `auditor123` | Auditoria Interna |
+
+Fluxo suportado na interface: registar paciente (incluindo desconhecido), abrir episodio, triagem com cor de Manchester, alocar leito, registar atendimento, prescrever, dispensar com segregacao de funcoes, dar alta medica (dispara higienizacao), concluir higienizacao e concluir alta administrativa. O painel mostra KPIs e a area de auditoria mostra a cadeia de hashes e os eventos de dominio.
+
+Endpoints principais: `/api/dashboard`, `/api/pacientes`, `/api/episodios`, `/api/fila`, `/api/leitos`, `/api/stock`, `/api/prescricoes/pendentes`, `/api/auditoria`, `/api/eventos`. A documentacao interativa da API esta em `/docs`.
+
+Testes do app:
+
+```bash
+python -m unittest tests.test_app -v
+```
+
 ## GitHub Actions
 
 Existem tres fluxos, todos corrigidos e ativos:
@@ -106,5 +139,8 @@ python -m compileall -q fabrica_core.py orquestrador.py executar_agente.py ferra
 - `skills/` - diretrizes obrigatorias dos agentes
 - `contexto/hospital/` - documentos `.md` do sistema hospitalar usados como contexto
 - `equipa_fabrica.py` - fabrica completa com CrewAI (opt-in)
+- `app/` - aplicacao hospitalar FastAPI, regras de dominio, seguranca e interface web
+- `run_app.py` - arranque local do app
+- `requirements-app.txt` - dependencias do app
 - `experimental/fabrica_ahs.py` - variacao antiga guardada para referencia
 - `.github/workflows/` - automatizacao na nuvem

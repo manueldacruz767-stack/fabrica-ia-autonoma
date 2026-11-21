@@ -20,3 +20,7 @@ env/
 projetos/
 saida/
 angola-health-system/
+data/
+*.db
+*.db-wal
+*.db-shm

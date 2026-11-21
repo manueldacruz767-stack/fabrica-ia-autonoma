@@ -1,0 +1,80 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #0d1117;
+  color: #e6edf3;
+}
+
+body { margin: 0; }
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 28px;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+}
+
+h1 { margin: 0; font-size: 1.3rem; }
+h2 { margin-top: 0; font-size: 1.15rem; }
+h3 { font-size: 1rem; margin-top: 24px; }
+p { margin: 6px 0; }
+
+main { padding: 24px 28px; max-width: 1400px; margin: auto; }
+
+#loginView { display: flex; justify-content: center; padding-top: 80px; }
+
+.cartao, .secao, .cartao-metrica {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.cartao { width: min(460px, 100%); }
+.cartao label { display: block; margin-bottom: 12px; }
+.cartao input { width: 100%; }
+
+input, select, button {
+  font: inherit;
+  padding: 9px 12px;
+  border-radius: 6px;
+  border: 1px solid #30363d;
+  background: #0d1117;
+  color: #e6edf3;
+}
+
+button { cursor: pointer; background: #238636; border-color: #2ea043; }
+button:hover { background: #2ea043; }
+button.ativo { outline: 2px solid #58a6ff; }
+
+#navegacao { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+#botaoSair { background: #8b1e1e; border-color: #a72d2d; }
+
+.linha-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+.linha-form input, .linha-form select { flex: 1 1 180px; }
+.caixa { display: flex; align-items: center; gap: 6px; }
+
+.grade-cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.cartao-metrica { display: flex; flex-direction: column; gap: 6px; }
+.cartao-metrica strong { font-size: 1.8rem; color: #58a6ff; }
+.cartao-metrica span { text-transform: capitalize; color: #8b949e; }
+
+table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 0.9rem; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid #30363d; vertical-align: top; }
+th { color: #8b949e; }
+
+.vazio { color: #8b949e; }
+.nota { color: #8b949e; font-size: 0.8rem; }
+.erro { color: #ff7b72; }
+.mensagem { min-height: 24px; color: #3fb950; }
+
+pre {
+  max-height: 320px;
+  overflow: auto;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 12px;
+}
