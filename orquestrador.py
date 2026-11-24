@@ -1,57 +1,90 @@
 import os
-from crewai import Agent, Crew, Task
-from langchain_google_genai import ChatGoogleGenerativeAI
+from crewai import Agent, Crew, Process, Task
+from crewai.llm import LLM
 
-os.environ["GEMINI_API_KEY"] = os.environ.get("GEMINI_API_KEY", "")
-llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.2)
+api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
-print("🏢 Inicializando a equipa de agentes na nuvem...")
+llm = LLM(
+    model=f"gemini/{os.getenv('GEMINI_MODEL', 'gemini-3.5-flash-lite')}",
+    temperature=0.7,
+    api_key=api_key,
+)
 
+# 1. Definir os Agentes da Fábrica de Software
 arquiteto = Agent(
     role="Arquiteto de Software Chefe",
-    goal="Planear a arquitetura, stack tecnológica, escopo e contrato de API.",
-    backstory="Líder técnico rigoroso.",
-    verbose=True, llm=llm
+    goal="Desenhar a arquitetura técnica, stack tecnológica e estrutura de ficheiros para a ideia de projeto fornecida.",
+    backstory="Um arquiteto experiente com visão de produto e foco em soluções escaláveis e limpas.",
+    verbose=True,
+    llm=llm
 )
 
-backend_dev = Agent(
-    role="Desenvolvedor Backend Sênior",
-    goal="Escrever o código fonte funcional do servidor com base no plano do Arquiteto.",
-    backstory="Especialista em APIs REST e bases de dados.",
-    verbose=True, llm=llm
+dev_backend = Agent(
+    role="Desenvolvedor Backend Sénior",
+    goal="Implementar a lógica de negócio, APIs e componentes de servidor necessários.",
+    backstory="Especialista em robustez, segurança de dados e arquiteturas eficientes em backend.",
+    verbose=True,
+    llm=llm
 )
 
-frontend_dev = Agent(
-    role="Desenvolvedor Frontend Sênior",
-    goal="Construir a interface do usuário conectando com os endpoints do backend.",
-    backstory="Especialista em interfaces modernas e responsivas.",
-    verbose=True, llm=llm
+dev_frontend = Agent(
+    role="Desenvolvedor Frontend Sénior",
+    goal="Criar interfaces de utilizador intuitivas, responsivas e visualmente apelativas.",
+    backstory="Apaixonado por UX/UI, design moderno com temas escuros e componentes limpos.",
+    verbose=True,
+    llm=llm
 )
 
-qa_tester = Agent(
-    role="Engenheiro de Testes e Qualidade (QA)",
-    goal="Rever o código gerado, apontar falhas ou bugs e garantir que está pronto.",
-    backstory="Auditor técnico implacável com erros.",
-    verbose=True, llm=llm
+qa = Agent(
+    role="Engenheiro de Qualidade (QA)",
+    goal="Rever o código e a documentação gerada, garantindo que cumprem os requisitos e estão livres de erros.",
+    backstory="Meticuloso, focado em testes, boas práticas e na integridade final do projeto.",
+    verbose=True,
+    llm=llm
 )
 
-ideia_projeto = os.environ.get("PROJETO_IDEIA", "Um site de portfólio simples.")
-print(f"💡 Projeto alvo: {ideia_projeto}")
+# Função principal para executar a Crew
+def executar_fabrica(ideia_projeto: str):
+    # 2. Definir as Tarefas
+    tarefa_arquitetura = Task(
+        description=f"Analisa a ideia de projeto: '{ideia_projeto}'. Cria a arquitetura completa e a estrutura de pastas.",
+        expected_output="Um documento detalhado de arquitetura e planeamento técnico.",
+        agent=arquiteto
+    )
 
-t1 = Task(description=f"Faça o planeamento e contrato de API para: {ideia_projeto}", expected_output="Documento de arquitetura em Markdown", agent=arquiteto)
-t2 = Task(description="Com base no plano, escreva o código do Backend.", expected_output="Código fonte do backend", agent=backend_dev)
-t3 = Task(description="Com base no plano, escreva o código do Frontend.", expected_output="Código fonte do frontend", agent=frontend_dev)
-t4 = Task(description="Faça a revisão de qualidade de todo o código gerado.", expected_output="Relatório de QA e código validado", agent=qa_tester)
+    tarefa_backend = Task(
+        description="Com base na arquitetura definida, desenha e estrutura o código do backend.",
+        expected_output="Esboço do código backend e endpoints principais.",
+        agent=dev_backend
+    )
 
-fabrica = Crew(
-    agents=[arquiteto, backend_dev, frontend_dev, qa_tester],
-    tasks=[t1, t2, t3, t4],
-    verbose=True
-)
+    tarefa_frontend = Task(
+        description="Com base na arquitetura, desenha a interface do utilizador (frontend) com foco em boa experiência.",
+        expected_output="Estrutura de componentes e telas do frontend.",
+        agent=dev_frontend
+    )
 
-resultado = fabrica.kickoff()
+    tarefa_revisao = Task(
+        description="Revisa todo o trabalho produzido pelos agentes anteriores, consolida e gera o ficheiro final 'projeto_final.md'.",
+        expected_output="Ficheiro markdown final consolidado (`projeto_final.md`) contendo todo o projeto estruturado.",
+        agent=qa,
+        output_file="projeto_final.md"
+    )
 
-with open("projeto_final.md", "w", encoding="utf-8") as f:
-    f.write(str(resultado))
+    # 3. Criar e Executar a Crew
+    fabrica_crew = Crew(
+        agents=[arquiteto, dev_backend, dev_frontend, qa],
+        tasks=[tarefa_arquitetura, tarefa_backend, tarefa_frontend, tarefa_revisao],
+        process=Process.sequential,
+        verbose=True
+    )
 
-print("✅ Trabalho concluído pela equipa com sucesso!")
+    resultado = fabrica_crew.kickoff()
+    return resultado
+
+if __name__ == "__main__":
+    ideia = "Plataforma de gestão de tarefas colaborativa em tempo real com autenticação."
+    print(f"🚀 A iniciar a Fábrica de IA para a ideia: {ideia}")
+    executar_fabrica(ideia)
+    print("✅ Processo concluído! Verifica o ficheiro 'projeto_final.md'.")
+        
