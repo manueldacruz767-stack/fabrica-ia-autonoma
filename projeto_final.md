@@ -6,87 +6,81 @@
 
 _Modelo: gemini-3.1-flash-lite_
 
-Como Scrum Master, apresento o Backlog da **Versão 0.1 (MVP - Fundação Operacional)** do Sistema de Gestão Hospitalar (HIS). O foco desta sprint é estabelecer a espinha dorsal de segurança, autenticação e a jornada básica do paciente na Urgência.
+Como Scrum Master, organizei o backlog da **Versão 0.1 (MVP)** do Sistema de Gestão Hospitalar (HIS). O foco desta versão é garantir a base de autenticação, o fluxo de admissão de pacientes na urgência e a gestão de leitos, pilares críticos para a operação hospitalar.
 
 ---
 
-### Sprint 1: Fundação, Segurança e Urgência Básica
-**Objetivo:** Garantir que o sistema é seguro, auditável e capaz de admitir e triar um paciente na Urgência.
+### Sprint 1: Infraestrutura Base e Identidade (Duração: 2 semanas)
+*Objetivo: Estabelecer o ambiente de desenvolvimento, segurança e gestão de utilizadores.*
 
-#### Histórias de Utilizador (User Stories)
+1. **US01 - Autenticação e RBAC (Alta Prioridade)**
+   - **História:** Como administrador, quero gerir perfis de utilizadores para que cada profissional aceda apenas às funcionalidades do seu cargo.
+   - **Critérios de Aceitação:**
+     - Login com encriptação de password (BCrypt).
+     - Implementação de RBAC (Role-Based Access Control) para perfis: Médico, Enfermeiro, Rececionista, Direção.
+     - Logout funcional e expiração de sessão via Redis.
 
-**US01: Autenticação e RBAC (Segurança)**
-*   **Prioridade:** Crítica
-*   **Descrição:** Como utilizador, quero autenticar-me no sistema para aceder apenas às funcionalidades permitidas pelo meu perfil.
-*   **Critérios de Aceitação:**
-    *   Login com encriptação de credenciais.
-    *   O sistema bloqueia acesso a módulos não autorizados (ex: Rececionista não acede a prontuário médico).
-    *   Registo de `login_sucesso` e `login_falhado` na trilha de auditoria.
-
-**US02: Admissão de Paciente na Urgência**
-*   **Prioridade:** Alta
-*   **Descrição:** Como rececionista, quero admitir um paciente (identificado ou desconhecido) para abrir um episódio de urgência.
-*   **Critérios de Aceitação:**
-    *   Criação de ficha provisória para pacientes indocumentados.
-    *   Geração de `ID_Episodio` único.
-    *   O estado inicial do episódio deve ser `ADMITIDO`.
-
-**US03: Triagem de Risco (Manchester)**
-*   **Prioridade:** Alta
-*   **Descrição:** Como enfermeiro, quero registar sinais vitais e classificar o risco do paciente para definir a prioridade de atendimento.
-*   **Critérios de Aceitação:**
-    *   Formulário de sinais vitais (PA, FC, Temp, SatO2).
-    *   Seleção de cor de prioridade (Triagem de Manchester).
-    *   Mudança automática de estado do episódio para `AGUARDANDO_MEDICO`.
-
-**US04: Trilha de Auditoria (Audit Trail)**
-*   **Prioridade:** Crítica
-*   **Descrição:** Como auditor, quero que todas as ações críticas sejam registadas imutavelmente.
-*   **Critérios de Aceitação:**
-    *   Captura automática de `utilizador_id`, `timestamp`, `acao` e `ip_origem` em cada transação de estado.
-    *   Logs estruturados em formato JSON.
+2. **US02 - Configuração de Auditoria (Alta Prioridade)**
+   - **História:** Como auditor, quero que todas as ações críticas sejam registadas para garantir a conformidade legal.
+   - **Critérios de Aceitação:**
+     - Interceptor de logs que grava: `user_id`, `action`, `timestamp`, `ip` e `entity_id`.
+     - Logs estruturados em JSON para fácil integração com ELK/Grafana.
 
 ---
 
-### Sprint 2: Atendimento Clínico e Suporte
-**Objetivo:** Permitir que o médico prescreva e que a farmácia/enfermagem interaja com o plano de cuidados.
+### Sprint 2: Fluxo de Urgência / Emergência (Duração: 3 semanas)
+*Objetivo: Permitir o atendimento de pacientes desde a receção até à triagem.*
 
-#### Histórias de Utilizador (User Stories)
+3. **US03 - Admissão de Pacientes (Alta Prioridade)**
+   - **História:** Como rececionista, quero admitir pacientes na urgência para iniciar o episódio clínico.
+   - **Critérios de Aceitação:**
+     - Registo de paciente com dados básicos (Nome, ID, Data Nascimento).
+     - Funcionalidade "Paciente Desconhecido" para casos críticos.
+     - Geração de número de episódio único.
 
-**US05: Prescrição Médica**
-*   **Prioridade:** Alta
-*   **Descrição:** Como médico, quero prescrever medicamentos e solicitar exames para o paciente em atendimento.
-*   **Critérios de Aceitação:**
-    *   Validação de prescrição: O sistema não permite prescrição sem episódio ativo.
-    *   Assinatura digital do médico no registo da prescrição.
-
-**US06: Administração de Medicação (Check-list)**
-*   **Prioridade:** Alta
-*   **Descrição:** Como enfermeiro, quero visualizar a prescrição médica e registar a administração do fármaco.
-*   **Critérios de Aceitação:**
-    *   Bloqueio de administração se não houver prescrição válida.
-    *   Registo de hora de administração e identificação do enfermeiro.
-
-**US07: Gestão de Leitos (Urgência/Observação)**
-*   **Prioridade:** Média
-*   **Descrição:** Como enfermeiro-chefe, quero alterar o estado de um leito (Livre, Ocupado, Higienização).
-*   **Critérios de Aceitação:**
-    *   Impedir alocação de paciente em leito com estado `AGUARDANDO_HIGIENIZACAO`.
-    *   Disparo de alerta para equipa de limpeza ao marcar leito como `ALTA_MEDICA`.
+4. **US04 - Triagem de Manchester (Alta Prioridade)**
+   - **História:** Como enfermeiro, quero classificar o risco do paciente para definir a prioridade de atendimento médico.
+   - **Critérios de Aceitação:**
+     - Formulário de sinais vitais e queixa principal.
+     - Atribuição automática de cor de prioridade (Manchester).
+     - Atualização do estado do episódio para `AGUARDANDO_MEDICO`.
 
 ---
 
-### Resumo de Planeamento (Backlog V0.1)
+### Sprint 3: Internamento e Gestão de Leitos (Duração: 3 semanas)
+*Objetivo: Controlar a ocupação hospitalar e garantir a higienização.*
 
-| Sprint | Foco | Principais Entregas |
-| :--- | :--- | :--- |
-| **S1** | Infraestrutura e Triagem | Auth, RBAC, Admissão, Triagem, Audit Trail |
-| **S2** | Assistência Clínica | Prescrição, Administração, Gestão de Leitos |
+5. **US05 - Gestão de Leitos (Média Prioridade)**
+   - **História:** Como enfermeiro-chefe, quero alocar um paciente a um leito para organizar o internamento.
+   - **Critérios de Aceitação:**
+     - Visualização do mapa de leitos (Livre, Ocupado, Higienização).
+     - Bloqueio de alocação em leitos com estado `AGUARDANDO_HIGIENIZACAO`.
+     - Atualização automática de estado do leito ao dar alta.
+
+6. **US06 - Alta Médica e Administrativa (Alta Prioridade)**
+   - **História:** Como médico, quero registar a alta clínica para libertar o paciente e o leito.
+   - **Critérios de Aceitação:**
+     - Validação: Só permite alta se houver sumário clínico preenchido.
+     - Disparo de evento `AltaMedicaRegistada` para o módulo de `HigienizacaoLeito`.
+     - Bloqueio de novas prescrições após a alta.
+
+---
+
+### Resumo do Backlog (Versão 0.1)
+
+| ID | História | Prioridade | Sprint |
+| :--- | :--- | :--- | :--- |
+| US01 | Autenticação e RBAC | Crítica | 1 |
+| US02 | Trilha de Auditoria | Crítica | 1 |
+| US03 | Admissão de Pacientes | Alta | 2 |
+| US04 | Triagem de Risco | Alta | 2 |
+| US05 | Gestão de Leitos | Média | 3 |
+| US06 | Fluxo de Alta | Alta | 3 |
 
 **Notas do Scrum Master:**
-1.  **Critérios de Aceitação:** Todos os critérios acima devem ser testados via testes de integração (Spring Boot/JUnit) e testes de interface (Angular/Cypress).
-2.  **Comunicação:** As equipas de Backend (Java) e Frontend (Angular) devem alinhar os contratos de API (Swagger/OpenAPI) antes de iniciar cada sprint para garantir a fluidez da comunicação.
-3.  **Qualidade:** A trilha de auditoria é um requisito não-funcional que deve ser implementado via *Aspect-Oriented Programming (AOP)* no Spring para garantir que nenhum dado clínico seja alterado sem registo.
+- **Comunicação:** As equipas de Backend (Java/Spring) e Frontend (Angular) devem alinhar os contratos de API (Swagger/OpenAPI) antes de iniciar a Sprint 2.
+- **Qualidade:** Nenhum critério de aceitação será dado como concluído sem a passagem nos testes unitários e de integração automatizados.
+- **Riscos:** A integração com equipamentos de sinais vitais (IoT) foi movida para a Versão 0.2 para garantir a estabilidade do fluxo de dados manual nesta fase.
 
 ---
 
@@ -94,77 +88,70 @@ Como Scrum Master, apresento o Backlog da **Versão 0.1 (MVP - Fundação Operac
 
 _Modelo: gemini-3.1-flash-lite_
 
-Como Arquiteto de Software, apresento a proposta de arquitetura para o Sistema de Gestão Hospitalar (HIS), focada em modularidade, integridade transacional e escalabilidade, seguindo rigorosamente a stack recomendada.
+Como Arquiteto de Software, apresento a proposta de arquitetura para o Sistema de Gestão Hospitalar (HIS), focada em modularidade, resiliência e conformidade com as exigências de um hospital público.
 
 ---
 
-### 1. Stack Tecnológica (Proporcional e Robusta)
+### 1. Stack Tecnológica Recomendada
+A escolha prioriza a robustez do ecossistema Java e a flexibilidade do Frontend moderno, garantindo escalabilidade e facilidade de manutenção.
 
-Para garantir a manutenção preventiva e a análise crítica exigidas, a stack escolhida prioriza a consistência de dados e a facilidade de manutenção:
-
-*   **Backend:** **Java 21 + Spring Boot** (Arquitetura de Monólito Modular).
-*   **Frontend:** **Angular** (TypeScript) para interfaces complexas e formulários reativos.
-*   **Banco de Dados Relacional (Core):** **Supabase (PostgreSQL)** para garantir ACID, integridade de prontuários e auditoria.
-*   **Banco de Dados NoSQL/Logs:** **MongoDB Atlas** para logs de auditoria, logs de sistema e dados não estruturados (ex: telemetria de equipamentos).
-*   **Cache/Filas:** **Redis** (sessões e painéis de triagem) + **RabbitMQ** (mensageria entre módulos).
-*   **Observabilidade:** **Prometheus + Grafana**.
+*   **Backend:** Java 21 + Spring Boot 3.x (Arquitetura Modular Monolith).
+*   **Frontend:** Angular 17+ (Ideal para formulários complexos e tipagem forte).
+*   **Banco de Dados Principal:** **Supabase (PostgreSQL)** para dados transacionais (ACID), auditoria e gestão de utilizadores.
+*   **Banco de Dados NoSQL/Logs:** **MongoDB Atlas** para logs de auditoria imutáveis, sinais vitais e documentos clínicos não estruturados (JSONB).
+*   **Cache/Mensageria:** Redis (Sessões/Dashboards) + RabbitMQ (Eventos de domínio/Integração).
+*   **Infraestrutura:** Docker + Kubernetes (K8s) para orquestração.
 
 ---
 
 ### 2. Arquitetura em Camadas (Modular Monolith)
 
-A estrutura é desenhada para permitir que domínios (Bounded Contexts) evoluam sem acoplamento excessivo.
+A estrutura é organizada por **Bounded Contexts** (Domínios), garantindo que a lógica de negócio de cada setor seja isolada, embora partilhem o mesmo *runtime*.
 
 #### A. Camada de Apresentação (Frontend)
-*   **SPA (Single Page Application):** Angular com *Lazy Loading* por módulo (Urgência, Internamento, Administrativo).
-*   **Segurança:** Autenticação via JWT com RBAC/ABAC integrado ao Spring Security.
+*   **SPA (Single Page Application):** Angular com *Lazy Loading* por módulo (ex: Módulo de Urgência, Módulo Administrativo).
+*   **UI Kit:** Componentes reutilizáveis focados em acessibilidade e alta performance (ex: tabelas de triagem, formulários de prontuário).
 
-#### B. Camada de Aplicação (Backend - Spring Boot)
-*   **Módulos de Domínio:** Cada módulo (Urgência, MDT, RH, Financeiro) possui o seu próprio pacote, isolando regras de negócio.
-*   **State Machines:** Implementadas para gerir fluxos clínicos (ex: `Triagem` -> `Internamento` -> `Alta`).
-*   **Event-Driven:** Uso de *Application Events* (internos) e *RabbitMQ* (para comunicação entre serviços ou integração com sistemas externos/HL7).
+#### B. Camada de Aplicação (API Gateway / BFF)
+*   **API Gateway:** Ponto único de entrada (Nginx ou Spring Cloud Gateway) para autenticação (JWT) e *Rate Limiting*.
+*   **Orquestração:** Gestão de permissões (RBAC/ABAC) integrada ao Supabase Auth.
 
-#### C. Camada de Persistência (Híbrida)
-*   **PostgreSQL (Supabase):** Armazena dados transacionais críticos: Prontuários, Escalas, Movimentação de Stock, Faturas e Dados de Pacientes.
-*   **MongoDB Atlas:** Armazena logs de auditoria imutáveis, logs de erro e telemetria de dispositivos médicos.
+#### C. Camada de Domínio (Backend - Spring Boot)
+*   **Módulos de Negócio:**
+    *   `Core-Clinico`: Urgência, Internamento, Bloco.
+    *   `Core-Suporte`: Logística, Farmácia, Manutenção.
+    *   `Core-Gestao`: RH, Financeiro, Auditoria.
+*   **Padrão de Comunicação:** Eventos de domínio (ex: `AltaMedicaRegistada` dispara `HigienizacaoLeito`).
 
----
-
-### 3. Limites e Regras de Integração
-
-Para garantir a integridade e a segregação de funções (SoD), definimos os seguintes limites:
-
-1.  **Isolamento de Domínio:** Um módulo nunca acede diretamente à base de dados de outro. A comunicação é feita via **Eventos** (ex: `AltaMedicaRegistada` dispara o evento de `HigienizacaoLeito`).
-2.  **Trilha de Auditoria (Audit Trail):** Qualquer alteração em dados críticos (prescrições, movimentos financeiros) é interceptada por um *Aspect* (AOP) no Spring e persistida no **MongoDB** com o contexto completo (`user_id`, `timestamp`, `ip`, `payload_antes`, `payload_depois`).
-3.  **Segregação de Leitura/Escrita:** Consultas pesadas para BI (Apache Superset) são direcionadas para uma réplica de leitura do PostgreSQL, evitando impacto na performance do atendimento clínico.
+#### D. Camada de Persistência (Híbrida)
+*   **PostgreSQL (Supabase):** Tabelas relacionais (Pacientes, Médicos, Escalas, Prescrições, Faturas).
+*   **MongoDB:** Logs de auditoria (trilha de acesso), telemetria de equipamentos e prontuários dinâmicos.
 
 ---
 
-### 4. Diagrama de Fluxo de Dados (Conceitual)
+### 3. Limites e Regras de Segurança
 
-```mermaid
-graph TD
-    UI[Angular Frontend] --> API[Spring Boot Gateway]
-    API --> Modulos[Módulos: Urgência, Internamento, Financeiro]
-    
-    Modulos --> Postgres[(Supabase PostgreSQL)]
-    Modulos --> Mongo[(MongoDB Atlas - Logs/Auditoria)]
-    
-    Modulos --> RMQ[RabbitMQ - Eventos]
-    RMQ --> Notificacoes[Serviço de Alertas]
-    
-    API --> Redis[Redis - Cache/Sessões]
-    
-    Prometheus[Prometheus] --> API
-    Grafana[Grafana] --> Prometheus
-```
+Para garantir a integridade do sistema hospitalar, definimos os seguintes limites:
+
+1.  **Segregação de Funções (SoD):** O código de negócio deve validar que o `User_ID` que solicita uma compra não é o mesmo que a aprova (verificação via *Interceptor* no Spring Security).
+2.  **Audit Trail:** Toda alteração em dados sensíveis (prescrições, prontuários, finanças) é escrita simultaneamente no PostgreSQL (estado atual) e no MongoDB (histórico imutável de auditoria).
+3.  **Contingência "Break-the-Glass":** Endpoint específico que permite acesso a dados restritos em emergências, disparando um evento assíncrono para a Auditoria Interna via RabbitMQ.
+4.  **Isolamento de Leitura:** Relatórios de BI (Apache Superset) conectam-se apenas a uma **Réplica de Leitura** do PostgreSQL, garantindo que consultas pesadas não afetem a performance do atendimento clínico.
 
 ---
 
-### 5. Verificação de Conformidade
-*   **Escalabilidade:** O backend é *stateless*, permitindo o escalamento horizontal de instâncias.
-*   **Segurança:** RBAC/ABAC implementado na camada de serviço, validando permissões antes de qualquer transação.
-*   **Manutenção:** A arquitetura modular permite que, se o módulo de "Urgência" crescer excessivamente, ele possa ser extraído para um microsserviço independente sem alterar a estrutura base do monólito.
+### 4. Checklist de Implementação
+
+| Camada | Componente | Responsabilidade |
+| :--- | :--- | :--- |
+| **Interface** | Angular | UX Clínica, formulários reativos, dashboards. |
+| **Segurança** | Spring Security | RBAC/ABAC, JWT, Auditoria de Acessos. |
+| **Negócio** | Spring Boot | Máquinas de estado (fluxos de paciente/financeiro). |
+| **Dados** | PostgreSQL | Consistência ACID, transações financeiras/clínicas. |
+| **Logs/Docs** | MongoDB | Auditoria imutável, formulários clínicos dinâmicos. |
+| **Integração** | RabbitMQ | Eventos assíncronos (ex: Alerta de rutura de stock). |
+
+Esta arquitetura garante que o hospital tenha um sistema estável hoje, com a capacidade de extrair módulos para microsserviços individuais no futuro, caso a carga de um departamento específico (ex: Urgência) exija escalabilidade isolada.
 
 ---
 
@@ -172,172 +159,141 @@ graph TD
 
 _Modelo: gemini-3.1-flash-lite_
 
-Este plano de implementação organiza o desenvolvimento do Sistema de Gestão Hospitalar (HIS) em fases lógicas, respeitando a arquitetura de **Monólito Modular** e as regras de **RBAC/Auditoria** definidas.
+Este plano de implementação organiza o desenvolvimento do Sistema de Gestão Hospitalar (HIS) numa abordagem de **Monólito Modular**, garantindo a conformidade com as regras de negócio e a segregação de funções (SoD) exigidas.
 
 ---
 
 ### 1. Estrutura de Diretórios (Modular Monolith)
-A estrutura deve garantir o desacoplamento por domínios (`Bounded Contexts`):
+A estrutura segue o padrão de domínios (Bounded Contexts) para garantir desacoplamento lógico:
 
 ```text
 /src
   /modules
-    /urgencia
-    /ambulatorio
-    /internamento
-    /mdt (Laboratório, Farmácia, Imagiologia)
-    /administrativo (RH, Finanças, Compras)
-    /governacao (Auditoria, Ética)
-  /shared
-    /database (Configuração PostgreSQL/TypeORM/Prisma)
-    /messaging (RabbitMQ/Outbox)
-    /auth (RBAC/JWT/Middleware)
-    /audit (Interceptors de Auditoria)
-  /config
-  /tests
+    /urgencia       # Triagem, Admissão, Fluxo de Paciente
+    /internamento   # Gestão de Leitos, Prescrição, Bloco Operatório
+    /mdt            # Laboratório, Imagiologia, Farmácia
+    /administrativo # RH, Financeiro, Compras, Logística
+    /governanca     # Auditoria, Pareceres Jurídicos, Dashboards
+  /shared           # Kernel: Auth, Logging, EventBus, AuditTrail
+  /infrastructure   # Configuração DB, Redis, RabbitMQ
 ```
 
 ---
 
 ### 2. Plano de Implementação (Fases)
 
-#### Fase 1: Fundação e Segurança (Sprint 1-2)
-*   **Objetivo:** Configurar o ambiente, autenticação e trilha de auditoria.
-*   **Entregáveis:**
-    *   Setup do projeto (NestJS/TypeScript ou Spring Boot).
-    *   Implementação do Middleware de **RBAC** (controlo de acesso baseado em perfis).
-    *   Criação do **Audit Interceptor**: Serviço que intercepta todas as operações de escrita e persiste no log de auditoria (tabela `audit_logs`).
-    *   Configuração do PostgreSQL com suporte a JSONB para formulários dinâmicos.
+#### Fase 1: Fundação e Segurança (Core)
+*   **Ficheiros:** `auth.service.ts`, `audit.interceptor.ts`, `rbac.guard.ts`.
+*   **Objetivo:** Implementar o sistema de autenticação (JWT) e o middleware de auditoria imutável.
+*   **Regra:** Toda requisição deve injetar `user_id`, `perfil_ativo` e `unidade_hospitalar` no contexto de execução.
 
-#### Fase 2: Ciclo Assistencial (Sprint 3-6)
-*   **Objetivo:** Implementar o core clínico (Urgência e Internamento).
-*   **Entregáveis:**
-    *   **Máquina de Estados:** Implementação dos fluxos de `Paciente` (Triagem -> Atendimento -> Alta).
-    *   **Prontuário Eletrónico:** Módulo de prescrição médica com validação de interação medicamentosa.
-    *   **Gestão de Leitos:** Módulo de ocupação e higienização (bloqueio de alocação se `status != 'LIVRE'`).
+#### Fase 2: Ciclo Assistencial (Core Clínico)
+*   **Ficheiros:** `patient.entity.ts`, `triage.service.ts`, `prescription.service.ts`.
+*   **Objetivo:** Implementar a jornada do paciente: Admissão $\rightarrow$ Triagem $\rightarrow$ Prescrição.
+*   **Regra:** Implementar a Máquina de Estado para o `EpisodioClinico`. Bloquear prescrições sem validação de médico ativo.
 
-#### Fase 3: Ciclo de Suporte e Logística (Sprint 7-9)
-*   **Objetivo:** Gestão de recursos e aprovações financeiras.
-*   **Entregáveis:**
-    *   **Workflow de Compras:** Implementação do padrão *Outbox* para garantir que a baixa de stock e o pedido de compra sejam atómicos.
-    *   **Alçadas de Aprovação:** Lógica de negócio para validar se o utilizador possui permissão para aprovar despesas (baseado na hierarquia do documento de requisitos).
+#### Fase 3: Logística e Suporte (Core de Apoio)
+*   **Ficheiros:** `inventory.service.ts`, `procurement.workflow.ts`.
+*   **Objetivo:** Fluxo de requisição de materiais e medicamentos.
+*   **Regra:** Aplicar a Segregação de Funções (SoD). O utilizador que solicita não pode ser o que aprova a compra.
 
-#### Fase 4: Observabilidade e BI (Sprint 10+)
-*   **Objetivo:** Monitorização e relatórios.
-*   **Entregáveis:**
-    *   Integração com **Prometheus/Grafana** para métricas de latência e erros.
-    *   Criação de `Data Mart` (réplica de leitura) para o **Apache Superset**.
+#### Fase 4: Governação e Observabilidade
+*   **Ficheiros:** `audit.log.repository.ts`, `health.check.ts`.
+*   **Objetivo:** Dashboards de BI (Superset) e trilha de auditoria para conformidade legal.
 
 ---
 
-### 3. Responsabilidades por Módulo
+### 3. Responsabilidades por Camada (Stack)
 
-| Módulo | Responsabilidade Técnica |
-| :--- | :--- |
-| **Auth/RBAC** | Garantir que o `Diretor Geral` não acede a prontuários clínicos. |
-| **Auditoria** | Garantir a imutabilidade dos logs (escrita em tabela *append-only*). |
-| **Core Clínico** | Implementar a lógica de "Break-the-Glass" (acesso de emergência com log de alerta). |
-| **Logística** | Segregação de funções (SoD): quem solicita não aprova. |
+| Camada | Responsabilidade | Tecnologia |
+| :--- | :--- | :--- |
+| **API/Backend** | Regras de negócio, Máquinas de Estado, SoD | Node.js (Fastify/NestJS) |
+| **Persistência** | Integridade ACID, Particionamento de logs | PostgreSQL |
+| **Mensageria** | Eventos de domínio (ex: `AltaRegistada`) | RabbitMQ |
+| **Frontend** | Dashboards, Formulários, Atalhos | Angular (TypeScript) |
 
 ---
 
 ### 4. Riscos Técnicos e Mitigação
 
-1.  **Concorrência na Alocação de Leitos:**
-    *   *Risco:* Dois enfermeiros alocarem o mesmo leito simultaneamente.
-    *   *Mitigação:* Utilizar **Locking Otimista** no PostgreSQL ou transações com isolamento `SERIALIZABLE` na tabela de leitos.
-2.  **Performance em Consultas de Auditoria:**
-    *   *Risco:* A tabela de auditoria crescer exponencialmente e degradar o sistema.
-    *   *Mitigação:* Implementar **particionamento de tabelas** por data (ex: mensal) no PostgreSQL.
-3.  **Consistência em Operações Distribuídas:**
-    *   *Risco:* Falha na comunicação entre o módulo de Farmácia e o módulo de Internamento.
-    *   *Mitigação:* Utilizar o padrão **Transactional Outbox** para garantir que a mensagem de "Baixa de Medicamento" seja enviada ao RabbitMQ apenas se a transação local for confirmada.
-4.  **Complexidade do RBAC:**
-    *   *Risco:* Permissões excessivamente granulares tornarem o código difícil de manter.
-    *   *Mitigação:* Utilizar **ABAC (Attribute-Based Access Control)** em conjunto com RBAC, permitindo definir permissões baseadas no contexto (ex: "Médico só pode editar prontuário se for o médico assistente do paciente").
+1.  **Risco: Concorrência na Alocação de Leitos**
+    *   *Mitigação:* Utilizar transações `SERIALIZABLE` no PostgreSQL e bloqueio otimista (versionamento de registo) para evitar que dois pacientes sejam alocados na mesma cama.
+2.  **Risco: Falha na Auditoria (Audit Trail)**
+    *   *Mitigação:* Implementar um padrão de *Transactional Outbox*. O registo de auditoria deve ser gravado na mesma transação que a alteração do dado clínico.
+3.  **Risco: Gargalo de Performance em Consultas Complexas**
+    *   *Mitigação:* Utilizar uma **Réplica de Leitura** para relatórios de BI e estatísticas, isolando o tráfego transacional do analítico.
+4.  **Risco: Acesso Indevido (Privilégios)**
+    *   *Mitigação:* Implementar **ABAC (Attribute-Based Access Control)** sobre o RBAC. O acesso a dados clínicos deve validar não apenas o perfil, mas também a relação direta do médico/enfermeiro com o paciente ou setor.
 
 ---
 
-### 5. Verificação de Qualidade
-*   **Testes Unitários:** Foco estrito na lógica das Máquinas de Estado.
-*   **Testes de Integração:** Validar o fluxo de aprovação de compras (o processo deve falhar se não houver parecer jurídico em compras de alto valor).
-*   **Análise Estática:** Uso de *SonarQube* para garantir que não há violações de segurança no código.
+### 5. Checklist de Verificação (Definition of Done)
+*   [ ] O log de auditoria captura `dados_anteriores` e `dados_novos`?
+*   [ ] O fluxo de "Break-the-Glass" dispara alerta para a Auditoria Interna?
+*   [ ] A segregação de funções impede que o mesmo utilizador aprove e execute uma compra?
+*   [ ] O sistema impede a alta administrativa sem a respetiva alta clínica?
+*   [ ] Todos os serviços estão stateless e delegam sessão ao Redis?
 
 ---
 
 ## qa
 
-_Modelo: gemini-3.5-flash-lite_
+_Modelo: gemini-3.1-flash-lite_
 
-# Plano de Qualidade e Testes — Sistema de Gestão Hospitalar Pública (HIS)
-
-Este plano define a estratégia de testes unitários, de integração e de aceitação, garantindo a conformidade com as regras de negócio, a integridade transacional (ACID), a segurança (RBAC/ABAC) e a trilha de auditoria (Audit Trail) do HIS.
+Como Agente de Garantia de Qualidade (QA), apresento o plano de testes estruturado para o Sistema de Gestão Hospitalar (HIS), focado na integridade, conformidade e segurança exigidas pelo contexto hospitalar.
 
 ---
 
-## 1. Testes Unitários (Unit Testing)
+### 1. Testes Unitários (Nível de Componente)
+**Objetivo:** Validar a lógica de negócio isolada (especialmente Máquinas de Estado e Regras de Negócio).
 
-Objetivo: Validar componentes isolados, regras de negócio puras, máquinas de estado clínico e cálculos de alocação no backend (Java/Spring Boot) e frontend (Angular/React).
+*   **Comandos/Ações:**
+    *   Executar `mvn test` (Java/Spring) ou `npm run test` (NestJS) com cobertura mínima de 80%.
+    *   Validar transições de estados (ex: `AGUARDANDO_TRIAGEM` -> `EM_ATENDIMENTO`).
+    *   Validar cálculos de dosagem e regras de validação de prescrição.
+*   **Critérios de Conclusão:**
+    *   100% de sucesso nos testes de lógica de transição de estados.
+    *   Zero falhas em testes de regras de validação de formulários clínicos.
 
-### Comandos de Execução
-* **Backend (Java / Maven):**
-  ```bash
-  mvn clean test
-  ```
-* **Frontend (Angular / Jest ou Karma):**
-  ```bash
-  npm run test -- --watch=false
-  ```
+### 2. Testes de Integração (Nível de Módulo)
+**Objetivo:** Validar a comunicação entre os domínios (Bounded Contexts) e a persistência.
 
-### Critérios de Conclusão e Casos Críticos
-* **Máquinas de Estado:** Validar transições estritas (ex: `AGUARDANDO_TRIAGEM` $\rightarrow$ `EM_ATENDIMENTO` $\rightarrow$ `ALTA_MEDICA`). Tentativas de transições inválidas (ex: `ALTA_MEDICA` direto para `AGUARDANDO_TRIAGEM`) devem lançar exceções tratadas.
-* **Segregação de Funções (SoD):** Validar que regras unitárias de validação de papéis impedem ações cruzadas (ex: um perfil de Enfermagem a tentar emitir uma alta médica).
-* **Cobertura Mínima:** Pelo menos 80% de cobertura de código em domínios críticos (Prescrições, Triagem, Alocação de Leitos).
+*   **Comandos/Ações:**
+    *   **Fluxo de Stock:** Simular `RequisiçãoInterna` -> `VerificaçãoStock` -> `BaixaFarmácia`.
+    *   **Fluxo de Auditoria:** Validar se cada ação crítica (ex: `AltaMedica`) gera o registo na tabela de auditoria com `correlation_id`.
+    *   **Fluxo de Mensageria:** Verificar se o evento `AltaMedicaRegistada` dispara a notificação para `HigienizacaoLeito` via RabbitMQ.
+*   **Critérios de Conclusão:**
+    *   Consistência ACID verificada no PostgreSQL em transações de alocação de leitos.
+    *   Confirmação de que eventos assíncronos são processados sem perda de mensagens.
 
----
+### 3. Testes de Aceitação (Critérios do Scrum Master)
+**Objetivo:** Validar se o sistema cumpre a jornada do utilizador e as regras de segurança (RBAC/ABAC).
 
-## 2. Testes de Integração (Integration Testing)
-
-Objetivo: Validar a comunicação entre módulos, persistência relacional (PostgreSQL), mensageria assíncrona (RabbitMQ/Outbox) e cache (Redis).
-
-### Comandos de Execução
-* **Execução de Testes de Integração com Testcontainers:**
-  ```bash
-  mvn verify -Dtest=*IntegrationTest
-  ```
-
-### Critérios de Conclusão e Casos Críticos
-* **Transacionalidade (ACID):** Validar que a alocação de leitos e a baixa simultânea de stock em farmácia ocorrem numa única transação atômica (Rollback em caso de falha de stock).
-* **Trilha de Auditoria Imutável (Audit Trail):** Testar se qualquer alteração em prontuários ou ordens de compra gera automaticamente o registo com `utilizador_id`, `perfil_ativo`, `dados_anteriores`, `dados_novos` e `ip_origem`.
-* **Mensageria (Event-Driven):** Validar que o evento `AltaMedicaRegistada` dispara assincronamente a notificação para o módulo de `HigienizacaoLeito` (estado do leito alterado para `AGUARDANDO_HIGIENIZACAO`).
+*   **Comandos/Ações:**
+    *   **Teste de Segregação de Funções (SoD):** Tentar realizar uma compra de alto valor com perfil de `Médico` (deve ser bloqueado).
+    *   **Teste de "Break-the-Glass":** Realizar acesso a prontuário restrito com perfil de `Médico` em urgência e validar se o log de auditoria foi gerado com a justificativa.
+    *   **Teste de Fluxo Clínico:** Executar a jornada completa: `Admissão` -> `Triagem` -> `Prescrição` -> `Alta`.
+*   **Critérios de Conclusão:**
+    *   O sistema bloqueia estritamente ações fora do perfil (RBAC).
+    *   A trilha de auditoria é imutável e contém todos os metadados exigidos (ID, Timestamp, IP).
+    *   O fluxo de "Break-the-Glass" dispara alerta automático para a Auditoria Interna.
 
 ---
 
-## 3. Testes de Aceitação e Critérios do Scrum Master (Acceptance Testing)
+### 4. Checklist de Reporte de Bugs
+Qualquer falha detetada deve ser reportada seguindo o padrão:
+1.  **Título:** [Módulo] - Descrição curta do erro.
+2.  **Passos para Reproduzir:** Lista numerada.
+3.  **Resultado Esperado:** O que deveria ocorrer segundo a especificação.
+4.  **Resultado Obtido:** O que ocorreu.
+5.  **Severidade:** (Crítica/Alta/Média/Baixa). *Nota: Falhas em fluxos assistenciais ou de auditoria são sempre "Críticas".*
 
-Objetivo: Validar se as entregas funcionais cumprem rigorosamente os critérios de aceitação definidos para o fluxo hospitalar público e as restrições RBAC/ABAC.
+---
 
-### Casos de Teste de Aceitação Funcional
+### 5. Estratégia de Observabilidade (QA Proativo)
+*   **Monitorização:** Validar se os logs estruturados (JSON) contêm o `correlation_id` em todos os ambientes.
+*   **Healthchecks:** Verificar se o endpoint `/health` retorna status 200 para o PostgreSQL, Redis e RabbitMQ antes de qualquer deploy.
 
-1. **Jornada de Urgência / Triagem:**
-   * *Critério:* Permitir abertura de ficha provisória ("Paciente Indocumentado") em casos críticos.
-   * *Verificação:* O sistema cria o episódio sem bloquear por falta de número de identificação, gerando alerta para identificação posterior.
-
-2. **Fluxo de Prescrição e Administração:**
-   * *Critério:* O enfermeiro não pode administrar medicação sem prescrição médica ativa.
-   * *Verificação:* Tentativa de registo de administração na folha de enfermagem sem receita associada deve ser rejeitada pela interface e API.
-
-3. **Contingência "Break-the-Glass":**
-   * *Critério:* Acesso excecional a histórico clínico restrito em risco de morte.
-   * *Verificação:* O médico insere justificativa obrigatória; o acesso é concedido e gera automaticamente um alerta de auditoria para a Comissão de Ética e Auditoria Interna.
-
-4. **Workflow de Compras de Alto Valor (Alçada 2):**
-   * *Critério:* Compras acima do limite de alçada exigem parecer jurídico e da auditoria antes da assinatura da Direção Geral.
-   * *Verificação:* O sistema bloqueia a aprovação final se os pareceres obrigatórios não estiverem anexados e validados por assinatura digital.
-
-### Critérios de Conclusão Global para Produção
-* **Zero Bugs Críticos ou Bloqueantes** pendentes nos módulos assistenciais (Urgência, Internamento, Farmácia).
-* **Validação de Segurança:** Aprovação em testes de permissão RBAC (nenhum perfil executa ações fora da sua matriz autorizada).
-* **Relatório de QA:** Emissão do parecer técnico de qualidade assinado antes do envio para o ambiente de produção.
+**Nota:** Este plano deve ser executado em ambiente de *Staging* espelhado (Docker Compose) antes de qualquer aprovação para produção.
 
 ---
